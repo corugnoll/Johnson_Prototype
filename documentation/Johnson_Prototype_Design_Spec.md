@@ -19,39 +19,138 @@ The following gameflow should be part of the initial prototype:
 - Players select “Execute Contract” and the effects are applied and modify the Player’s Stats accordingly  
 - Cleanup: When players select a new contract, the old contract information is removed (pools get emptied etc), the new one is loaded and the runners are reset.
 
-# Components and Game Elements
+# Tech and Architecture
 
-## Stats
+### **Technology Requirements**
 
-The following stats exist in the game:  
-Player-Stats: Stats that the player has to display the overall game state.
+* Platform: Modern web browser  
+* Approach: Client-side only (no server required)  
+* Complexity: Keep simple \- prototype level, not production  
+* Performance: Should handle up to 100 nodes smoothly
 
-- Money: The amount of money a player has. Money is earned by completing contracts. When a player compelts a contract, that contracts “Reward” is added to the players Money stat, which in this early prototype serves as score.  
-- Player Risk: A negative resource. Contracts can generate risk on completion. When a player completes a contract that generates risk, that risk is added to their Player Risk.
+### **Recommended Structure**
 
-Setup Stats: The stats of the runners the player has chosen. For now these don’t have an effect..
+* Use vanilla JavaScript or a simple framework  
+* Organize code into logical modules/files  
+* Separate concerns: rendering, game logic, data management  
+* No complex build process required for prototype
 
-- Runner Type: The type of runner. Options are: Muscle, Face, Ninja, Hacker  
-- Runner Stats: The stats each runner has (each runner has all 4). They are: Muscle Stat, Face Stat, Ninja Stat, Hacker Stat
+### **Key Technical Decisions Agents Should Make**
 
-# Architecture
+* 1\. Rendering Approach:  
+*    \- Canvas-based (better for complex graphics, connection lines)  
+*    \- OR DOM-based (simpler for clickable nodes with text)  
+*      
+* 2\. State Management:  
+*    \- How to track selected nodes  
+*    \- How to store contract data  
+*    \- How to calculate and update pools  
+*      
+* 3\. File Organization:  
+*    \- Logical separation of features  
+*    \- Clear naming conventions  
+*      
+* 4\. Data Flow:  
+*    \- How user actions trigger updates  
+*    \- How changes propagate through the system
 
-- There should be a folder that contains all contract csv files, during gameplay a dropdown can display all of the csv for players to select a contract
+### **Required Capabilities**
 
-## Play Area
+* \- Load and parse CSV files  
+* \- Render nodes with different visual states  
+* \- Draw connections between nodes  
+* \- Calculate effects based on conditions  
+* \- Update UI sections dynamically  
+* \- Handle user interactions (clicks, input fields)  
+* \- Reset state when switching contracts
+
+### **External Libraries (Optional)**
+
+* \- CSV parsing: Can use Papa Parse or implement custom parser  
+* \- No other external dependencies required
+
+### **Browser Compatibility**
+
+* Target modern browsers only (2020 or newer)  
+* No need for legacy browser support
+
+# UI Specifications
+
+## Node Colors
+
+The following Colors should be used for Nodes when drawing them.
+
+| Name in CSV | Hex Code |
+| :---- | :---- |
+| Red | \#FF6467 |
+| Yellow | \#FFDF20 |
+| Green | \#FFDF20 |
+| Blue | \#51A2FF |
+| Purple | \#51A2FF |
+| Grey | \#51A2FF |
+
+## Other UI Features
+
+- Create Hover Feedback for interactive elements  
+- Create on click feedback for interactive elements  
+- Create visual feedback for Node State (Available, Unavailable, Selected) as specified in Node State Table
+
+# Play Area
 
 The play area consists of the following elements:
 
-- Game Board: The largest part that contains the full contract perk tree. The tree might be larger than the board, so it needs to be able to scroll.  (detailed specs for this are delivered below)  
-- Setup Section: Here players can select their runner stats. There are always 3 runners per contract. It consists of a Dropdown for “Runner Type” and 4 text-fields per runner, one for each Runner-Stat (detailed specs for those are delivered below)  
-- Preview Section: Here players get a live preview of what effects their current choices would result in.  (detailed specs for those are delivered below)  
-- Game State Section: Contains information about the current player state and stats (detailed specs for those are delivered below)  
-- Options Section: A section that contains buttons with functionality to advance gamestate, get help etc. (detailed specs for those are delivered below)
+- Game Board (Center of Screen)  
+- Setup Section (Top Left)  
+- Game State Section (Top Center)  
+- Options Section (Bottom Right)
 
 Here is a quick and dirty mockup of the Play Area detailing where certain sections should be located and a rough plan for their size compared to each other:  
 ![][image1]
 
-## Contract Perk Tree
+## Game Board Details
+
+- Containts Contract Perk Tree and displays its name somewhere visible  
+- Section for Synergy Nodes above the Perk Tree  
+- Can be scrolled if perk tree is too large to be displayed on one screen
+
+## Setup Section
+
+Here players can select their runner stats.
+
+-  There are always 3 runners per contract.  
+- Each has a Dropdown for “Runner Type” (possible choices:Empty, Face, Muscle, Hacker, Ninja)  
+- Each has 4 text-fields where users can input integers, one for each Runner-Stat: FaceStat, MuscleStat, HackerStat, NinjaStat  
+- Has a sub section that shows the totals of all Runner Stats added from all Runners
+
+## Options Section
+
+A section that contains buttons with functionality to advance gamestate  
+Has the following elements:
+
+- Help Button: on hover displays help. Text can be gathered from a help file we include somewhere in the project  
+- Contract Dropdown: Dropdown of all available contracts  
+- Select Contract Button: Selects the contract that was selected in the Dropdown and removes the current one, if there is one.  
+- Execute Contract: Only clickable if a contract is selected. Executes the current contract.  
+- Reset Game: resets the game to its initial state
+
+## Game State Section
+
+Here players see an overview of their current player state. It contains the following elements:
+
+- Amount of PlayerMoney  
+- Amount of PlayerRisk  
+- Amount of completed Contracts
+
+## Preview Section
+
+Displays the preview of stats for the current contract and Node selection. If no contract is selected, this is empty.  
+Has the following information:
+
+- Display Current Stat Pools for: Grit, Veil, Damage, Risk, Money  
+- Display Prevented Damage (from Grit)   
+- Display Prevented Risk (from Veil)
+
+# Contract Perk Tree
 
 The core of the prototype are the Contract Perk Trees that are displayed on the Game Board.  
 They consist of the following components:
@@ -80,7 +179,7 @@ Nodes can exist in the following states:
 
 ## Node States
 
-A node’s state should be visualized on the node.
+A node’s state should be visualized on the node. Node States can change if users click on them.
 
 | State | Behavior | Visualization |
 | :---- | :---- | :---- |
@@ -102,7 +201,7 @@ A node’s state should be visualized on the node.
 
 Effects have the components outlied in this table.  
 In the CSV Effect Column they will be written as follows:  
- {Condition},{Operator},{Amount},{Stat}
+ {Condition};{Operator};{Amount};{Stat}
 
 | Component | Format | Example |
 | :---- | :---- | :---- |
@@ -217,6 +316,28 @@ Each Row in the CSV represents a node.
 ### Additional Rules
 
 - Nodes of Type “Synergy” are always displayed in their own section above the Contract Perk Tree. They are centered above the tree and ordered from left to right. Thus, these will not have an entry for “Slot” and “Layer”.
+
+## Contract Completion
+
+When a player clicks on the “Complete Contract” button, the following happens:
+
+- Re-Evaluate all Stat pools of this contract by applying Node Effects  
+- Apply Synergy Node effects  
+- Add contract Risk pool total to PlayerRisk stat  
+- Add contract Money pool total to PlayerMoney stat  
+- Empty pools, remove contract visuals and logic and reset everything so when a new contract is loaded no problems arise  
+- Set RunnerStats to 0, set RunnerTypes to Empty
+
+# Possible Player Actions
+
+- Setup Section:  
+  - Select runner type in dropdown  
+  - Add runner stat for each runner in text field  
+- Contract Area:  
+  - Click on nodes to change their state  
+  - Drag the screen if tree is larger than visible area to scroll around canvas  
+- Options Area:  
+  - Click on interactive elements and buttons
 
 ## 
 
