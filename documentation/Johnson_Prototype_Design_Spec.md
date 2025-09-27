@@ -7,6 +7,17 @@ The game puts players in the seat of a “Johnson”, a fixer in a cyberpunk-wor
 The core loop we want to test the most is how these contracts play out.  
 Contracts are presented as a “Perk Tree”, a set of connected nodes that contain the narrative of the contract but also have effects. These can be seen as a small puzzle that players need to solve. They can choose the input by selecting a group of Runners and then need to choose path through this Perk Tree that minimizes negative effects and maximizes synergistic effects for more rewards.
 
+# Rough Roadmap
+
+Core Features (Must Have)   
+1\. Load and display one contract   
+2\. Node selection/deselection  
+ 3\. Effect calculation   
+4\. Preview updates   
+Phase 2 Features   
+1\. Multiple contract handling  
+2\. Visual polish
+
 # Game Flow
 
 The following gameflow should be part of the initial prototype:
@@ -127,7 +138,7 @@ Here players can select their runner stats.
 A section that contains buttons with functionality to advance gamestate  
 Has the following elements:
 
-- Help Button: on hover displays help. Text can be gathered from a help file we include somewhere in the project  
+- Help Button: on hover displays help. Text can be gathered from this file on github: documentation/help.txt  
 - Contract Dropdown: Dropdown of all available contracts  
 - Select Contract Button: Selects the contract that was selected in the Dropdown and removes the current one, if there is one.  
 - Execute Contract: Only clickable if a contract is selected. Executes the current contract.  
@@ -143,7 +154,7 @@ Here players see an overview of their current player state. It contains the foll
 
 ## Preview Section
 
-Displays the preview of stats for the current contract and Node selection. If no contract is selected, this is empty.  
+Displays the preview of stats for the current contract and Node selection. Whenever a node’s state changes, the whole preview is updated. If no contract is selected, this is empty.  
 Has the following information:
 
 - Display Current Stat Pools for: Grit, Veil, Damage, Risk, Money  
@@ -288,6 +299,7 @@ Contract Perk Trees are generated based on data from the contract\_data CSV file
 ### CSV File
 
 Each contract has its own csv file.  
+You can find an example CSV on github: Contracts/Contract\_Example1.csv  
 Each Row in the CSV represents a node.
 
 | Column Name | Required | Behavior |
