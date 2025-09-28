@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Condition Logic - Johnson Prototype</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .pass {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .fail {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Condition Logic Test Suite</h1>
+
+    <div class="test-container">
+        <h2>Test Setup</h2>
+        <button onclick="runAllTests()">Run All Tests</button>
+        <button onclick="clearResults()">Clear Results</button>
+        <div id="test-results"></div>
+    </div>
+
+    <div class="test-container">
+        <h2>Manual Test Interface</h2>
+        <p>Configure runners and test effects manually:</p>
+
+        <div>
+            <h3>Runner Configuration</h3>
+            <label>Runner 1 Muscle: <input type="number" id="runner1-muscle" value="5" min="0" max="10"></label><br>
+            <label>Runner 2 Muscle: <input type="number" id="runner2-muscle" value="4" min="0" max="10"></label><br>
+            <label>Runner 3 Muscle: <input type="number" id="runner3-muscle" value="0" min="0" max="10"></label><br>
+            <button onclick="updateRunners()">Update Runners</button>
+        </div>
+
+        <div>
+            <h3>Test Effect</h3>
+            <label>Effect String: <input type="text" id="effect-string" value="RunnerStat:muscle>=3;+;1;Veil" style="width: 300px;"></label><br>
+            <button onclick="testEffect()">Test Effect</button>
+            <div id="manual-test-result"></div>
+        </div>
+    </div>
+
+    <script src="js/gameState.js"></script>
+    <script>
+        let gameState;
+
+        function initializeGameState() {
+            gameState = new GameState();
+
+            // Set up some dummy contract data for testing
+            const testContractData = [
+                {
+                    'Node ID': '1',
+                    'Description': 'Test Node',
+                    'Effect Desc': '+1 veil per 3 MuscleStat',
+                    'Effect 1': 'RunnerStat:muscle>=3;+;1;Veil',
+                    'Effect 2': '',
+                    'Type': 'Effect',
+                    'Color': 'Blue',
+                    'Layer': '0',
+                    'Slot': 'CE',
+                    'Connections': ''
+                }
+            ];
+
+            gameState.setContractData(testContractData);
+            return gameState;
+        }
+
+        function runAllTests() {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = '<div class="info">Running tests...</div>';
+
+            let testResults = [];
+
+            // Initialize game state for testing
+            gameState = initializeGameState();
+
+            // Test 1: Basic multiplication logic
+            testResults.push(testBasicMultiplication());
+
+            // Test 2: Zero threshold edge case
+            testResults.push(testZeroCase());
+
+            // Test 3: Multiple stat support
+            testResults.push(testMultipleStats());
+
+            // Test 4: Real-world scenario from CSV
+            testResults.push(testRealWorldScenario());
+
+            // Display results
+            displayTestResults(testResults);
+        }
+
+        function testBasicMultiplication() {
+            const test = {
+                name: 'Basic Multiplication Logic',
+                description: 'Test that 9 muscle stat with threshold 3 gives multiplier of 3'
+            };
+
+            try {
+                // Set up runners with total 9 muscle
+                gameState.setRunnerStat(0, 'muscle', 5);
+                gameState.setRunnerStat(1, 'muscle', 4);
+                gameState.setRunnerStat(2, 'muscle', 0);
+
+                // Test the condition evaluation
+                const multiplier = gameState.evaluateRunnerStatCondition('RunnerStat:muscle>=3');
+
+                if (multiplier === 3) {
+                    test.result = 'PASS';
+                    test.details = `Multiplier: ${multiplier} (expected: 3)`;
+                } else {
+                    test.result = 'FAIL';
+                    test.details = `Multiplier: ${multiplier} (expected: 3)`;
+                }
+
+            } catch (error) {
+                test.result = 'FAIL';
+                test.details = `Error: ${error.message}`;
+            }
+
+            return test;
+        }
+
+        function testZeroCase() {
+            const test = {
+                name: 'Zero Case',
+                description: 'Test that insufficient stats result in multiplier of 0'
+            };
+
+            try {
+                // Set up runners with total 2 muscle (less than threshold of 3)
+                gameState.setRunnerStat(0, 'muscle', 1);
+                gameState.setRunnerStat(1, 'muscle', 1);
+                gameState.setRunnerStat(2, 'muscle', 0);
+
+                const multiplier = gameState.evaluateRunnerStatCondition('RunnerStat:muscle>=3');
+
+                if (multiplier === 0) {
+                    test.result = 'PASS';
+                    test.details = `Multiplier: ${multiplier} (expected: 0)`;
+                } else {
+                    test.result = 'FAIL';
+                    test.details = `Multiplier: ${multiplier} (expected: 0)`;
+                }
+
+            } catch (error) {
+                test.result = 'FAIL';
+                test.details = `Error: ${error.message}`;
+            }
+
+            return test;
+        }
+
+        function testMultipleStats() {
+            const test = {
+                name: 'Multiple Stats Support',
+                description: 'Test face+muscle combined stat calculation'
+            };
+
+            try {
+                // Set up runners with face and muscle stats
+                gameState.setRunnerStat(0, 'face', 2);
+                gameState.setRunnerStat(0, 'muscle', 3);
+                gameState.setRunnerStat(1, 'face', 1);
+                gameState.setRunnerStat(1, 'muscle', 2);
+
+                // Total face + muscle = 8, threshold 4 should give multiplier 2
+                const multiplier = gameState.evaluateRunnerStatCondition('RunnerStat:face+muscle>=4');
+
+                if (multiplier === 2) {
+                    test.result = 'PASS';
+                    test.details = `Multiplier: ${multiplier} (expected: 2)`;
+                } else {
+                    test.result = 'FAIL';
+                    test.details = `Multiplier: ${multiplier} (expected: 2)`;
+                }
+
+            } catch (error) {
+                test.result = 'FAIL';
+                test.details = `Error: ${error.message}`;
+            }
+
+            return test;
+        }
+
+        function testRealWorldScenario() {
+            const test = {
+                name: 'Real World Effect Application',
+                description: 'Test complete effect application with condition multiplier'
+            };
+
+            try {
+                // Reset pools and set up scenario
+                gameState.currentPools = gameState.initializePools();
+
+                // Set up runners with 9 total muscle
+                gameState.setRunnerStat(0, 'muscle', 5);
+                gameState.setRunnerStat(1, 'muscle', 4);
+                gameState.setRunnerStat(2, 'muscle', 0);
+
+                // Apply effect: "RunnerStat:muscle>=3;+;1;Veil"
+                // Should add 3 veil (9/3 = 3 multiplier * 1 amount)
+                gameState.applyEffect('RunnerStat:muscle>=3;+;1;Veil');
+
+                if (gameState.currentPools.veil === 3) {
+                    test.result = 'PASS';
+                    test.details = `Veil: ${gameState.currentPools.veil} (expected: 3)`;
+                } else {
+                    test.result = 'FAIL';
+                    test.details = `Veil: ${gameState.currentPools.veil} (expected: 3)`;
+                }
+
+            } catch (error) {
+                test.result = 'FAIL';
+                test.details = `Error: ${error.message}`;
+            }
+
+            return test;
+        }
+
+        function displayTestResults(testResults) {
+            const resultsDiv = document.getElementById('test-results');
+            let html = '<h3>Test Results</h3>';
+
+            let passCount = 0;
+            let failCount = 0;
+
+            testResults.forEach(test => {
+                const cssClass = test.result === 'PASS' ? 'pass' : 'fail';
+                if (test.result === 'PASS') passCount++;
+                else failCount++;
+
+                html += `
+                    <div class="test-result ${cssClass}">
+                        <strong>${test.name}</strong> - ${test.result}<br>
+                        <em>${test.description}</em><br>
+                        ${test.details}
+                    </div>
+                `;
+            });
+
+            html = `<div class="info">Tests completed: ${passCount} passed, ${failCount} failed</div>` + html;
+            resultsDiv.innerHTML = html;
+        }
+
+        function clearResults() {
+            document.getElementById('test-results').innerHTML = '';
+            document.getElementById('manual-test-result').innerHTML = '';
+        }
+
+        function updateRunners() {
+            if (!gameState) gameState = initializeGameState();
+
+            const muscle1 = parseInt(document.getElementById('runner1-muscle').value) || 0;
+            const muscle2 = parseInt(document.getElementById('runner2-muscle').value) || 0;
+            const muscle3 = parseInt(document.getElementById('runner3-muscle').value) || 0;
+
+            gameState.setRunnerStat(0, 'muscle', muscle1);
+            gameState.setRunnerStat(1, 'muscle', muscle2);
+            gameState.setRunnerStat(2, 'muscle', muscle3);
+
+            const total = muscle1 + muscle2 + muscle3;
+            document.getElementById('manual-test-result').innerHTML =
+                `<div class="info">Runners updated. Total muscle: ${total}</div>`;
+        }
+
+        function testEffect() {
+            if (!gameState) {
+                gameState = initializeGameState();
+                updateRunners();
+            }
+
+            const effectString = document.getElementById('effect-string').value;
+
+            try {
+                // Reset pools
+                gameState.currentPools = gameState.initializePools();
+
+                // Apply the effect
+                gameState.applyEffect(effectString);
+
+                const resultDiv = document.getElementById('manual-test-result');
+                resultDiv.innerHTML = `
+                    <div class="pass">
+                        <strong>Effect Applied:</strong> ${effectString}<br>
+                        <strong>Current Pools:</strong><br>
+                        <pre>${JSON.stringify(gameState.currentPools, null, 2)}</pre>
+                    </div>
+                `;
+
+            } catch (error) {
+                document.getElementById('manual-test-result').innerHTML =
+                    `<div class="fail">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Initialize on page load
+        window.onload = function() {
+            gameState = initializeGameState();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,379 @@
+/**
+ * Main Application Module
+ * Handles application initialization and coordination between modules
+ */
+
+
+class JohnsonApp {
+    constructor() {
+        this.csvLoader = null;
+        this.uiManager = null;
+        this.gameState = null;
+        this.visualRenderer = null;
+        this.isInitialized = false;
+    }
+
+    /**
+     * Initialize the application
+     */
+    async init() {
+        try {
+            // Initialize core modules
+            this.gameState = new GameState();
+            this.csvLoader = new CSVLoader();
+            this.uiManager = new UIManager(this.gameState, this.csvLoader);
+
+            // Initialize visual prototype renderer
+            const canvas = document.getElementById('gameCanvas');
+            if (canvas) {
+                this.visualRenderer = new VisualPrototypeRenderer(canvas);
+                // Set up coordination with game state
+                this.visualRenderer.setNodeSelectionCallback(this.handleNodeSelection.bind(this));
+            } else {
+                console.warn('Canvas element not found - visual prototype will not be available');
+            }
+
+            // Set up event listeners
+            this.setupEventListeners();
+
+            // Initialize UI
+            await this.uiManager.init();
+
+            // Update loading status
+            this.updateLoadingMessage('Application initialized. Ready to load contract.');
+
+            this.isInitialized = true;
+            console.log('Johnson Prototype application initialized successfully');
+
+        } catch (error) {
+            console.error('Failed to initialize application:', error);
+            this.updateLoadingMessage('Application initialization failed. Please refresh the page.');
+        }
+    }
+
+    /**
+     * Set up global event listeners
+     */
+    setupEventListeners() {
+        // Handle file input changes
+        const fileInput = document.getElementById('contract-file');
+        if (fileInput) {
+            fileInput.addEventListener('change', this.handleFileLoad.bind(this));
+        }
+
+        // Handle example contract loading
+        const loadExampleBtn = document.getElementById('load-example');
+        if (loadExampleBtn) {
+            loadExampleBtn.addEventListener('click', this.handleLoadExample.bind(this));
+        }
+
+        // Handle configuration validation
+        const validateBtn = document.getElementById('validate-config');
+        if (validateBtn) {
+            validateBtn.addEventListener('click', this.handleValidateConfig.bind(this));
+        }
+
+        // Handle contract execution
+        const executeBtn = document.getElementById('execute-contract');
+        if (executeBtn) {
+            executeBtn.addEventListener('click', this.handleExecuteContract.bind(this));
+        }
+
+        // Handle runner configuration changes
+        this.setupRunnerEventListeners();
+
+        // Handle window resize for responsive canvas
+        window.addEventListener('resize', this.handleResize.bind(this));
+    }
+
+    /**
+     * Set up event listeners for runner configuration
+     */
+    setupRunnerEventListeners() {
+        for (let i = 1; i <= 3; i++) {
+            // Runner type changes
+            const typeSelect = document.getElementById(`runner${i}-type`);
+            if (typeSelect) {
+                typeSelect.addEventListener('change', (e) => {
+                    this.handleRunnerTypeChange(i - 1, e.target.value);
+                });
+            }
+
+            // Runner stat changes
+            ['face', 'muscle', 'hacker', 'ninja'].forEach(stat => {
+                const input = document.getElementById(`runner${i}-${stat}`);
+                if (input) {
+                    input.addEventListener('input', (e) => {
+                        this.handleRunnerStatChange(i - 1, stat, e.target.value);
+                    });
+                }
+            });
+        }
+    }
+
+    /**
+     * Handle file loading from input
+     */
+    async handleFileLoad(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        try {
+            this.updateLoadingMessage('Loading contract file...');
+            const contractData = await this.csvLoader.loadFile(file);
+
+            if (contractData && contractData.length > 0) {
+                this.gameState.setContractData(contractData);
+                this.uiManager.updateContractDisplay(file.name);
+
+                // Create and load visual contract data
+                if (this.visualRenderer) {
+                    const visualContractData = this.csvLoader.createVisualContractData(contractData);
+                    this.visualRenderer.loadContract(visualContractData);
+                    // Sync initial state
+                    this.syncVisualWithGameState();
+                }
+
+                this.updateLoadingMessage(`Contract "${file.name}" loaded successfully.`);
+
+                // Enable validation button
+                const validateBtn = document.getElementById('validate-config');
+                if (validateBtn) validateBtn.disabled = false;
+            } else {
+                throw new Error('No valid data found in contract file');
+            }
+
+        } catch (error) {
+            console.error('Error loading contract file:', error);
+            this.updateLoadingMessage(`Error loading contract: ${error.message}`);
+            this.uiManager.updateContractDisplay('Error loading contract');
+        }
+    }
+
+    /**
+     * Handle loading the example contract
+     */
+    async handleLoadExample() {
+        try {
+            this.updateLoadingMessage('Loading example contract...');
+
+            // Fallback: use embedded CSV data for file:// protocol compatibility
+            const csvText = `Node ID,Description,Effect Desc,Effect 1,Effect 2,Type,Color,Layer,Slot,Connections
+1,Start Node,"+2 Grit",None;+;2;Grit,,Effect,Red,0,CE,2;3
+2,Choice A,"+2 Risk",None;+;2;Risk,,Effect,Green,1,U1,4
+3,Choice B,"+2 Dam",None;+;2;Damage,,Effect,Purple,1,D1,4
+4,Final Node,"+2 Veil",None;+;2;Veil,,Effect,Blue,2,CE,`;
+
+            // Try to fetch first, fall back to embedded data if it fails
+            let actualCsvText = csvText;
+            try {
+                const response = await fetch('Contracts/Contract_Example1.csv');
+                if (response.ok) {
+                    actualCsvText = await response.text();
+                    console.log('Loaded CSV from file successfully');
+                } else {
+                    console.log('Fetch failed, using embedded CSV data');
+                }
+            } catch (fetchError) {
+                console.log('Fetch not available or failed, using embedded CSV data:', fetchError.message);
+            }
+
+            const contractData = this.csvLoader.parseCSV(actualCsvText);
+
+            if (contractData && contractData.length > 0) {
+                this.gameState.setContractData(contractData);
+                this.uiManager.updateContractDisplay('Contract_Example1.csv');
+
+                // Create and load visual contract data
+                if (this.visualRenderer) {
+                    const visualContractData = this.csvLoader.createVisualContractData(contractData);
+                    this.visualRenderer.loadContract(visualContractData);
+                    // Sync initial state
+                    this.syncVisualWithGameState();
+                }
+
+                this.updateLoadingMessage('Example contract loaded successfully.');
+
+                // Enable validation button
+                const validateBtn = document.getElementById('validate-config');
+                if (validateBtn) validateBtn.disabled = false;
+            } else {
+                throw new Error('No valid data found in example contract');
+            }
+
+        } catch (error) {
+            console.error('Error loading example contract:', error);
+            this.updateLoadingMessage(`Error loading example contract: ${error.message}`);
+            this.uiManager.updateContractDisplay('Error loading example');
+        }
+    }
+
+    /**
+     * Handle runner type changes
+     */
+    handleRunnerTypeChange(slotIndex, runnerType) {
+        if (this.gameState) {
+            this.gameState.setRunnerType(slotIndex, runnerType);
+            this.uiManager.updatePoolsDisplay();
+        }
+    }
+
+    /**
+     * Handle runner stat changes
+     */
+    handleRunnerStatChange(slotIndex, statType, value) {
+        if (this.gameState) {
+            const numValue = parseInt(value) || 0;
+            this.gameState.setRunnerStat(slotIndex, statType, numValue);
+            this.uiManager.updatePoolsDisplay();
+            // Sync visual prototype with updated calculations
+            this.syncVisualWithGameState();
+        }
+    }
+
+    /**
+     * Handle node selection from visual prototype
+     * @param {string} nodeId - ID of the node that was clicked
+     * @param {boolean} isSelected - Whether the node is now selected
+     */
+    handleNodeSelection(nodeId, isSelected) {
+        if (!this.gameState) return;
+
+        if (isSelected) {
+            this.gameState.selectNode(nodeId);
+        } else {
+            // Remove node from selection
+            const index = this.gameState.selectedNodes.indexOf(nodeId);
+            if (index !== -1) {
+                this.gameState.selectedNodes.splice(index, 1);
+                const node = this.gameState.getNodeById(nodeId);
+                if (node) {
+                    node.selected = false;
+                }
+            }
+        }
+
+        // Update calculations and UI
+        this.gameState.calculateCurrentPools();
+        this.gameState.updateAvailableNodes();
+        this.uiManager.updatePoolsDisplay();
+
+        // Sync visual prototype with updated node availability
+        this.syncVisualWithGameState();
+    }
+
+    /**
+     * Sync visual prototype with game state
+     */
+    syncVisualWithGameState() {
+        if (this.visualRenderer && this.gameState) {
+            // Update visual node availability based on game state
+            const availableNodeIds = this.gameState.contractData
+                ? this.gameState.contractData.filter(node => node.available).map(node => node.id)
+                : [];
+
+            this.visualRenderer.setAvailableNodes(availableNodeIds);
+            this.visualRenderer.syncWithGameState(this.gameState.selectedNodes);
+        }
+    }
+
+    /**
+     * Handle configuration validation
+     */
+    handleValidateConfig() {
+        if (!this.gameState || !this.gameState.contractData) {
+            this.updateLoadingMessage('No contract loaded for validation.');
+            return;
+        }
+
+        try {
+            const isValid = this.gameState.validateConfiguration();
+
+            if (isValid) {
+                this.updateLoadingMessage('Configuration validated successfully.');
+
+                // Enable execute button
+                const executeBtn = document.getElementById('execute-contract');
+                if (executeBtn) executeBtn.disabled = false;
+            } else {
+                this.updateLoadingMessage('Configuration validation failed. Check runner setup.');
+            }
+
+        } catch (error) {
+            console.error('Error validating configuration:', error);
+            this.updateLoadingMessage(`Validation error: ${error.message}`);
+        }
+    }
+
+    /**
+     * Handle contract execution
+     */
+    handleExecuteContract() {
+        if (!this.gameState || !this.gameState.contractData) {
+            this.updateLoadingMessage('No contract loaded for execution.');
+            return;
+        }
+
+        try {
+            // For now, just simulate contract execution
+            this.updateLoadingMessage('Contract execution feature coming in next milestone.');
+            console.log('Contract execution requested - placeholder for future implementation');
+
+        } catch (error) {
+            console.error('Error executing contract:', error);
+            this.updateLoadingMessage(`Execution error: ${error.message}`);
+        }
+    }
+
+    /**
+     * Handle window resize
+     */
+    handleResize() {
+        // Update canvas size if needed
+        const canvas = document.getElementById('gameCanvas');
+        if (canvas && this.uiManager) {
+            this.uiManager.handleCanvasResize();
+        }
+    }
+
+    /**
+     * Update loading message display
+     */
+    updateLoadingMessage(message) {
+        const loadingElement = document.getElementById('loading-message');
+        if (loadingElement) {
+            loadingElement.textContent = message;
+            loadingElement.setAttribute('aria-live', 'polite');
+        }
+    }
+
+    /**
+     * Get current application state for debugging
+     */
+    getDebugInfo() {
+        return {
+            isInitialized: this.isInitialized,
+            hasGameState: !!this.gameState,
+            hasCSVLoader: !!this.csvLoader,
+            hasUIManager: !!this.uiManager,
+            contractLoaded: this.gameState ? !!this.gameState.contractData : false,
+            runnerData: this.gameState ? this.gameState.runners : null
+        };
+    }
+}
+
+// Initialize application when DOM is loaded
+document.addEventListener('DOMContentLoaded', async () => {
+    const app = new JohnsonApp();
+
+    // Make app available globally for debugging
+    window.johnsonApp = app;
+
+    try {
+        await app.init();
+    } catch (error) {
+        console.error('Failed to start Johnson Prototype:', error);
+    }
+});
+
+// Export for potential module imports

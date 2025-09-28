@@ -1,0 +1,288 @@
+/**
+ * Main Application Module
+ * Handles application initialization and coordination between modules
+ */
+
+
+class JohnsonApp {
+    constructor() {
+        this.csvLoader = null;
+        this.uiManager = null;
+        this.gameState = null;
+        this.isInitialized = false;
+    }
+
+    /**
+     * Initialize the application
+     */
+    async init() {
+        try {
+            // Initialize core modules
+            this.gameState = new GameState();
+            this.csvLoader = new CSVLoader();
+            this.uiManager = new UIManager(this.gameState, this.csvLoader);
+
+            // Set up event listeners
+            this.setupEventListeners();
+
+            // Initialize UI
+            await this.uiManager.init();
+
+            // Update loading status
+            this.updateLoadingMessage('Application initialized. Ready to load contract.');
+
+            this.isInitialized = true;
+            console.log('Johnson Prototype application initialized successfully');
+
+        } catch (error) {
+            console.error('Failed to initialize application:', error);
+            this.updateLoadingMessage('Application initialization failed. Please refresh the page.');
+        }
+    }
+
+    /**
+     * Set up global event listeners
+     */
+    setupEventListeners() {
+        // Handle file input changes
+        const fileInput = document.getElementById('contract-file');
+        if (fileInput) {
+            fileInput.addEventListener('change', this.handleFileLoad.bind(this));
+        }
+
+        // Handle example contract loading
+        const loadExampleBtn = document.getElementById('load-example');
+        if (loadExampleBtn) {
+            loadExampleBtn.addEventListener('click', this.handleLoadExample.bind(this));
+        }
+
+        // Handle configuration validation
+        const validateBtn = document.getElementById('validate-config');
+        if (validateBtn) {
+            validateBtn.addEventListener('click', this.handleValidateConfig.bind(this));
+        }
+
+        // Handle contract execution
+        const executeBtn = document.getElementById('execute-contract');
+        if (executeBtn) {
+            executeBtn.addEventListener('click', this.handleExecuteContract.bind(this));
+        }
+
+        // Handle runner configuration changes
+        this.setupRunnerEventListeners();
+
+        // Handle window resize for responsive canvas
+        window.addEventListener('resize', this.handleResize.bind(this));
+    }
+
+    /**
+     * Set up event listeners for runner configuration
+     */
+    setupRunnerEventListeners() {
+        for (let i = 1; i <= 3; i++) {
+            // Runner type changes
+            const typeSelect = document.getElementById(`runner${i}-type`);
+            if (typeSelect) {
+                typeSelect.addEventListener('change', (e) => {
+                    this.handleRunnerTypeChange(i - 1, e.target.value);
+                });
+            }
+
+            // Runner stat changes
+            ['face', 'muscle', 'hacker', 'ninja'].forEach(stat => {
+                const input = document.getElementById(`runner${i}-${stat}`);
+                if (input) {
+                    input.addEventListener('input', (e) => {
+                        this.handleRunnerStatChange(i - 1, stat, e.target.value);
+                    });
+                }
+            });
+        }
+    }
+
+    /**
+     * Handle file loading from input
+     */
+    async handleFileLoad(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        try {
+            this.updateLoadingMessage('Loading contract file...');
+            const contractData = await this.csvLoader.loadFile(file);
+
+            if (contractData && contractData.length > 0) {
+                this.gameState.setContractData(contractData);
+                this.uiManager.updateContractDisplay(file.name);
+                this.updateLoadingMessage(`Contract "${file.name}" loaded successfully.`);
+
+                // Enable validation button
+                const validateBtn = document.getElementById('validate-config');
+                if (validateBtn) validateBtn.disabled = false;
+            } else {
+                throw new Error('No valid data found in contract file');
+            }
+
+        } catch (error) {
+            console.error('Error loading contract file:', error);
+            this.updateLoadingMessage(`Error loading contract: ${error.message}`);
+            this.uiManager.updateContractDisplay('Error loading contract');
+        }
+    }
+
+    /**
+     * Handle loading the example contract
+     */
+    async handleLoadExample() {
+        try {
+            this.updateLoadingMessage('Loading example contract...');
+
+            // Fetch the example contract file
+            const response = await fetch('Contracts/Contract_Example1.csv');
+            if (!response.ok) {
+                throw new Error(`Failed to fetch example contract: ${response.statusText}`);
+            }
+
+            const csvText = await response.text();
+            const contractData = this.csvLoader.parseCSV(csvText);
+
+            if (contractData && contractData.length > 0) {
+                this.gameState.setContractData(contractData);
+                this.uiManager.updateContractDisplay('Contract_Example1.csv');
+                this.updateLoadingMessage('Example contract loaded successfully.');
+
+                // Enable validation button
+                const validateBtn = document.getElementById('validate-config');
+                if (validateBtn) validateBtn.disabled = false;
+            } else {
+                throw new Error('No valid data found in example contract');
+            }
+
+        } catch (error) {
+            console.error('Error loading example contract:', error);
+            this.updateLoadingMessage(`Error loading example contract: ${error.message}`);
+            this.uiManager.updateContractDisplay('Error loading example');
+        }
+    }
+
+    /**
+     * Handle runner type changes
+     */
+    handleRunnerTypeChange(slotIndex, runnerType) {
+        if (this.gameState) {
+            this.gameState.setRunnerType(slotIndex, runnerType);
+            this.uiManager.updatePoolsDisplay();
+        }
+    }
+
+    /**
+     * Handle runner stat changes
+     */
+    handleRunnerStatChange(slotIndex, statType, value) {
+        if (this.gameState) {
+            const numValue = parseInt(value) || 0;
+            this.gameState.setRunnerStat(slotIndex, statType, numValue);
+            this.uiManager.updatePoolsDisplay();
+        }
+    }
+
+    /**
+     * Handle configuration validation
+     */
+    handleValidateConfig() {
+        if (!this.gameState || !this.gameState.contractData) {
+            this.updateLoadingMessage('No contract loaded for validation.');
+            return;
+        }
+
+        try {
+            const isValid = this.gameState.validateConfiguration();
+
+            if (isValid) {
+                this.updateLoadingMessage('Configuration validated successfully.');
+
+                // Enable execute button
+                const executeBtn = document.getElementById('execute-contract');
+                if (executeBtn) executeBtn.disabled = false;
+            } else {
+                this.updateLoadingMessage('Configuration validation failed. Check runner setup.');
+            }
+
+        } catch (error) {
+            console.error('Error validating configuration:', error);
+            this.updateLoadingMessage(`Validation error: ${error.message}`);
+        }
+    }
+
+    /**
+     * Handle contract execution
+     */
+    handleExecuteContract() {
+        if (!this.gameState || !this.gameState.contractData) {
+            this.updateLoadingMessage('No contract loaded for execution.');
+            return;
+        }
+
+        try {
+            // For now, just simulate contract execution
+            this.updateLoadingMessage('Contract execution feature coming in next milestone.');
+            console.log('Contract execution requested - placeholder for future implementation');
+
+        } catch (error) {
+            console.error('Error executing contract:', error);
+            this.updateLoadingMessage(`Execution error: ${error.message}`);
+        }
+    }
+
+    /**
+     * Handle window resize
+     */
+    handleResize() {
+        // Update canvas size if needed
+        const canvas = document.getElementById('gameCanvas');
+        if (canvas && this.uiManager) {
+            this.uiManager.handleCanvasResize();
+        }
+    }
+
+    /**
+     * Update loading message display
+     */
+    updateLoadingMessage(message) {
+        const loadingElement = document.getElementById('loading-message');
+        if (loadingElement) {
+            loadingElement.textContent = message;
+            loadingElement.setAttribute('aria-live', 'polite');
+        }
+    }
+
+    /**
+     * Get current application state for debugging
+     */
+    getDebugInfo() {
+        return {
+            isInitialized: this.isInitialized,
+            hasGameState: !!this.gameState,
+            hasCSVLoader: !!this.csvLoader,
+            hasUIManager: !!this.uiManager,
+            contractLoaded: this.gameState ? !!this.gameState.contractData : false,
+            runnerData: this.gameState ? this.gameState.runners : null
+        };
+    }
+}
+
+// Initialize application when DOM is loaded
+document.addEventListener('DOMContentLoaded', async () => {
+    const app = new JohnsonApp();
+
+    // Make app available globally for debugging
+    window.johnsonApp = app;
+
+    try {
+        await app.init();
+    } catch (error) {
+        console.error('Failed to start Johnson Prototype:', error);
+    }
+});
+
+// Export for potential module imports

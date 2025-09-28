@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Prototype Test - Johnson Prototype</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .canvas-container {
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 600px;
+            background-color: #fafafa;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            justify-content: center;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .status {
+            text-align: center;
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+        }
+        .test-info {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+    </style>
+    <script src="Tools/node_modules/papaparse/papaparse.min.js"></script>
+</head>
+<body>
+    <div class="test-container">
+        <div class="test-header">
+            <h1>Visual Prototype Test</h1>
+            <p>Testing the Johnson Prototype Visual Prototype Implementation</p>
+        </div>
+
+        <div class="test-info">
+            <h3>Test Objectives:</h3>
+            <ul>
+                <li>Load Contract_Example1.csv and display as visual node tree</li>
+                <li>Verify all 6 node colors render with correct hex values</li>
+                <li>Test connection lines between nodes</li>
+                <li>Verify interactive node selection works</li>
+                <li>Confirm no console errors during operation</li>
+            </ul>
+        </div>
+
+        <div class="controls">
+            <button id="load-example">Load Example Contract</button>
+            <button id="clear-selections">Clear Selections</button>
+            <button id="debug-info">Show Debug Info</button>
+        </div>
+
+        <div class="status" id="status">Ready to test. Click "Load Example Contract" to begin.</div>
+
+        <div class="canvas-container">
+            <canvas id="testCanvas" width="800" height="600"></canvas>
+        </div>
+
+        <div id="debug-output" style="display: none; margin-top: 20px; padding: 10px; background-color: #f8f9fa; border-radius: 4px;">
+            <h4>Debug Information:</h4>
+            <pre id="debug-text"></pre>
+        </div>
+    </div>
+
+    <script src="js/csvLoader.js"></script>
+    <script src="js/visualPrototype.js"></script>
+
+    <script>
+        // Test application
+        class VisualPrototypeTest {
+            constructor() {
+                this.csvLoader = new CSVLoader();
+                this.visualRenderer = null;
+                this.statusElement = document.getElementById('status');
+                this.setupEventListeners();
+            }
+
+            setupEventListeners() {
+                document.getElementById('load-example').addEventListener('click', () => {
+                    this.loadExampleContract();
+                });
+
+                document.getElementById('clear-selections').addEventListener('click', () => {
+                    this.clearSelections();
+                });
+
+                document.getElementById('debug-info').addEventListener('click', () => {
+                    this.showDebugInfo();
+                });
+            }
+
+            updateStatus(message) {
+                this.statusElement.textContent = message;
+                console.log('Status:', message);
+            }
+
+            async loadExampleContract() {
+                try {
+                    this.updateStatus('Loading example contract...');
+
+                    // Initialize renderer if not already done
+                    if (!this.visualRenderer) {
+                        const canvas = document.getElementById('testCanvas');
+                        this.visualRenderer = new VisualPrototypeRenderer(canvas);
+                    }
+
+                    // Embedded CSV data for testing
+                    const csvText = `Node ID,Description,Effect Desc,Effect 1,Effect 2,Type,Color,Layer,Slot,Connections
+1,Start Node,"+2 Grit",None;+;2;Grit,,Effect,Red,0,CE,2;3
+2,Choice A,"+2 Risk",None;+;2;Risk,,Effect,Green,1,U1,4
+3,Choice B,"+2 Dam",None;+;2;Damage,,Effect,Purple,1,D1,4
+4,Final Node,"+2 Veil",None;+;2;Veil,,Effect,Blue,2,CE,`;
+
+                    const contractData = this.csvLoader.parseCSV(csvText);
+                    const visualContractData = this.csvLoader.createVisualContractData(contractData);
+
+                    this.visualRenderer.loadContract(visualContractData);
+
+                    this.updateStatus('Example contract loaded successfully! Click nodes to select/deselect them.');
+
+                } catch (error) {
+                    console.error('Error loading example contract:', error);
+                    this.updateStatus(`Error: ${error.message}`);
+                }
+            }
+
+            clearSelections() {
+                if (this.visualRenderer) {
+                    this.visualRenderer.clearSelections();
+                    this.updateStatus('All selections cleared.');
+                } else {
+                    this.updateStatus('No contract loaded yet.');
+                }
+            }
+
+            showDebugInfo() {
+                const debugOutput = document.getElementById('debug-output');
+                const debugText = document.getElementById('debug-text');
+
+                if (this.visualRenderer) {
+                    const state = this.visualRenderer.getVisualizationState();
+                    debugText.textContent = JSON.stringify(state, null, 2);
+                    debugOutput.style.display = 'block';
+                } else {
+                    debugText.textContent = 'No visual renderer initialized yet.';
+                    debugOutput.style.display = 'block';
+                }
+            }
+        }
+
+        // Initialize test when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            window.visualTest = new VisualPrototypeTest();
+            console.log('Visual Prototype Test initialized');
+        });
+    </script>
+</body>
+</html>

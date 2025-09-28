@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Johnson Prototype Test</title>
+    <script src="Tools/node_modules/papaparse/papaparse.min.js"></script>
+</head>
+<body>
+    <h1>Testing Johnson Prototype</h1>
+    <div id="test-results"></div>
+
+    <script>
+        // Basic test to see if classes can be instantiated
+        document.addEventListener('DOMContentLoaded', function() {
+            const results = document.getElementById('test-results');
+
+            try {
+                // Test Papa Parse
+                if (typeof Papa !== 'undefined') {
+                    results.innerHTML += '<p>✓ Papa Parse loaded successfully</p>';
+                } else {
+                    results.innerHTML += '<p>✗ Papa Parse not loaded</p>';
+                }
+
+                // Basic CSV parsing test
+                const testCSV = 'name,value\ntest,123';
+                const parsed = Papa.parse(testCSV, { header: true });
+                if (parsed.data && parsed.data.length > 0) {
+                    results.innerHTML += '<p>✓ CSV parsing works</p>';
+                } else {
+                    results.innerHTML += '<p>✗ CSV parsing failed</p>';
+                }
+
+                results.innerHTML += '<p>Basic functionality test passed!</p>';
+
+            } catch (error) {
+                results.innerHTML += '<p>✗ Error: ' + error.message + '</p>';
+            }
+        });
+    </script>
+
+    <script src="js/csvLoader.js"></script>
+    <script src="js/gameState.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+
+    <script>
+        // Test if classes are available after loading
+        document.addEventListener('DOMContentLoaded', function() {
+            const results = document.getElementById('test-results');
+
+            setTimeout(() => {
+                try {
+                    if (typeof CSVLoader !== 'undefined') {
+                        results.innerHTML += '<p>✓ CSVLoader class available</p>';
+                    } else {
+                        results.innerHTML += '<p>✗ CSVLoader class not available</p>';
+                    }
+
+                    if (typeof GameState !== 'undefined') {
+                        results.innerHTML += '<p>✓ GameState class available</p>';
+                    } else {
+                        results.innerHTML += '<p>✗ GameState class not available</p>';
+                    }
+
+                    if (typeof UIManager !== 'undefined') {
+                        results.innerHTML += '<p>✓ UIManager class available</p>';
+                    } else {
+                        results.innerHTML += '<p>✗ UIManager class not available</p>';
+                    }
+
+                    if (typeof JohnsonApp !== 'undefined') {
+                        results.innerHTML += '<p>✓ JohnsonApp class available</p>';
+                    } else {
+                        results.innerHTML += '<p>✗ JohnsonApp class not available</p>';
+                    }
+
+                    if (window.johnsonApp) {
+                        results.innerHTML += '<p>✓ Global johnsonApp instance available</p>';
+                    } else {
+                        results.innerHTML += '<p>✗ Global johnsonApp instance not available</p>';
+                    }
+
+                } catch (error) {
+                    results.innerHTML += '<p>✗ Class availability test error: ' + error.message + '</p>';
+                }
+            }, 100);
+        });
+    </script>
+</body>
+</html>

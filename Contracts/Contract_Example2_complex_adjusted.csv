@@ -1,0 +1,11 @@
+Node ID,Description,Effect Desc,Effect 1,Effect 2,Type,Color,Layer,Slot,Connections
+1,Start Node,"""+2 Grit""",None;+;2;Grit,,Effect,Red,0,CE,2;3
+2,Choice A,"""+2 Risk""",None;+;2;Risk,,Effect,Green,1,U1,4
+3,Choice B,"""+2 Dam""",None;+;2;Damage,,Effect,Purple,1,D1,4
+4,Final Node,"""+2 Veil""",None;+;2;Veil,,Effect,Blue,2,CE,5;6;7
+5,Test1,Testing,None;+;2;Grit,,Effect,Blue,3,CE,8;9
+6,Test2,Something,None;+;2;Risk,,Effect,Yellow,3,U1,9
+7,Test3,See,None;+;2;Damage,,Effect,Purple,3,D1,8
+8,Test4,Doesnt,None;+;2;Veil,,Effect,Blue,4,D1,10
+9,Test5,Appear,None;+;2;Damage,,Effect,Yellow,4,U1,10
+10,Test6,Finale,None;+;2;Veil,,Effect,Yellow,5,CE,

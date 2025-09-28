@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Visual Prototype Enhancement</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        #testCanvas {
+            border: 2px solid #333;
+            background-color: white;
+            display: block;
+            margin: 20px auto;
+        }
+        .test-info {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .test-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+    <script src="Tools/node_modules/papaparse/papaparse.min.js"></script>
+</head>
+<body>
+    <div class="test-info">
+        <h1>Johnson Prototype - Visual Enhancement Test</h1>
+        <p>This test page verifies that the enhanced node rendering displays both Description and Effect Description with visual separators.</p>
+
+        <canvas id="testCanvas" width="800" height="400"></canvas>
+
+        <div>
+            <button id="testBasicNodes" class="test-button">Test Basic Nodes</button>
+            <button id="testExampleContract" class="test-button">Test Example Contract</button>
+            <button id="clearCanvas" class="test-button">Clear Canvas</button>
+        </div>
+
+        <div id="testResults">
+            <h3>Test Results:</h3>
+            <ul id="resultsList"></ul>
+        </div>
+    </div>
+
+    <script src="js/csvLoader.js"></script>
+    <script src="js/visualPrototype.js"></script>
+
+    <script>
+        // Test application
+        class VisualizationTest {
+            constructor() {
+                this.renderer = null;
+                this.csvLoader = new CSVLoader();
+                this.init();
+            }
+
+            init() {
+                const canvas = document.getElementById('testCanvas');
+                this.renderer = new VisualPrototypeRenderer(canvas);
+
+                // Set up test buttons
+                document.getElementById('testBasicNodes').addEventListener('click', () => this.testBasicNodes());
+                document.getElementById('testExampleContract').addEventListener('click', () => this.testExampleContract());
+                document.getElementById('clearCanvas').addEventListener('click', () => this.clearCanvas());
+
+                this.addResult('Test application initialized');
+            }
+
+            testBasicNodes() {
+                const testData = [
+                    {
+                        'Node ID': 'T1',
+                        'Description': 'Test Node 1',
+                        'Effect Desc': '+2 Grit',
+                        'Effect 1': 'None;+;2;Grit',
+                        'Effect 2': '',
+                        'Type': 'Effect',
+                        'Color': 'Red',
+                        'Layer': '0',
+                        'Slot': 'CE',
+                        'Connections': 'T2'
+                    },
+                    {
+                        'Node ID': 'T2',
+                        'Description': 'Longer Test Node Title',
+                        'Effect Desc': '+2 Risk, +1 Damage',
+                        'Effect 1': 'None;+;2;Risk',
+                        'Effect 2': 'None;+;1;Damage',
+                        'Type': 'Effect',
+                        'Color': 'Green',
+                        'Layer': '1',
+                        'Slot': 'CE',
+                        'Connections': ''
+                    }
+                ];
+
+                const visualContractData = this.csvLoader.createVisualContractData(testData);
+                this.renderer.loadContract(visualContractData);
+                this.addResult('Basic nodes test completed - should show Description + separator + Effect Desc');
+            }
+
+            testExampleContract() {
+                const csvText = `Node ID,Description,Effect Desc,Effect 1,Effect 2,Type,Color,Layer,Slot,Connections
+1,Start Node,"+2 Grit",None;+;2;Grit,,Effect,Red,0,CE,2;3
+2,Choice A,"+2 Risk",None;+;2;Risk,,Effect,Green,1,U1,4
+3,Choice B,"+2 Dam",None;+;2;Damage,,Effect,Purple,1,D1,4
+4,Final Node,"+2 Veil",None;+;2;Veil,,Effect,Blue,2,CE,`;
+
+                try {
+                    const contractData = this.csvLoader.parseCSV(csvText);
+                    const visualContractData = this.csvLoader.createVisualContractData(contractData);
+                    this.renderer.loadContract(visualContractData);
+                    this.addResult('Example contract test completed - 4 nodes with descriptions and effects');
+                } catch (error) {
+                    this.addResult(`Error loading example contract: ${error.message}`, true);
+                }
+            }
+
+            clearCanvas() {
+                const canvas = document.getElementById('testCanvas');
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                this.addResult('Canvas cleared');
+            }
+
+            addResult(message, isError = false) {
+                const resultsList = document.getElementById('resultsList');
+                const listItem = document.createElement('li');
+                listItem.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+                if (isError) {
+                    listItem.style.color = 'red';
+                }
+                resultsList.appendChild(listItem);
+                console.log(message);
+            }
+        }
+
+        // Initialize test when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const test = new VisualizationTest();
+            window.testApp = test; // Make available for debugging
+        });
+    </script>
+</body>
+</html>

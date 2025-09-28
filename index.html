@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Johnson Prototype - Cyberpunk Simulation Game</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="Tools/node_modules/papaparse/papaparse.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header class="game-board" role="main" aria-label="Game Board">
+            <h2>Contract Tree</h2>
+            <div class="canvas-container">
+                <canvas id="gameCanvas" aria-label="Contract node visualization"></canvas>
+            </div>
+        </header>
+
+        <aside class="setup-section" role="complementary" aria-label="Runner Setup">
+            <h2>Runner Configuration</h2>
+            <div class="runner-slots">
+                <div class="runner-slot" data-slot="0">
+                    <h3>Runner 1</h3>
+                    <label for="runner1-type">Type:</label>
+                    <select id="runner1-type" name="runner1-type" aria-label="Runner 1 Type">
+                        <option value="Empty">Empty</option>
+                        <option value="Face">Face</option>
+                        <option value="Muscle">Muscle</option>
+                        <option value="Hacker">Hacker</option>
+                        <option value="Ninja">Ninja</option>
+                    </select>
+
+                    <div class="runner-stats">
+                        <label for="runner1-face">Face Stat:</label>
+                        <input type="number" id="runner1-face" name="runner1-face" min="0" max="10" value="0" aria-label="Runner 1 Face Stat">
+
+                        <label for="runner1-muscle">Muscle Stat:</label>
+                        <input type="number" id="runner1-muscle" name="runner1-muscle" min="0" max="10" value="0" aria-label="Runner 1 Muscle Stat">
+
+                        <label for="runner1-hacker">Hacker Stat:</label>
+                        <input type="number" id="runner1-hacker" name="runner1-hacker" min="0" max="10" value="0" aria-label="Runner 1 Hacker Stat">
+
+                        <label for="runner1-ninja">Ninja Stat:</label>
+                        <input type="number" id="runner1-ninja" name="runner1-ninja" min="0" max="10" value="0" aria-label="Runner 1 Ninja Stat">
+                    </div>
+                </div>
+
+                <div class="runner-slot" data-slot="1">
+                    <h3>Runner 2</h3>
+                    <label for="runner2-type">Type:</label>
+                    <select id="runner2-type" name="runner2-type" aria-label="Runner 2 Type">
+                        <option value="Empty">Empty</option>
+                        <option value="Face">Face</option>
+                        <option value="Muscle">Muscle</option>
+                        <option value="Hacker">Hacker</option>
+                        <option value="Ninja">Ninja</option>
+                    </select>
+
+                    <div class="runner-stats">
+                        <label for="runner2-face">Face Stat:</label>
+                        <input type="number" id="runner2-face" name="runner2-face" min="0" max="10" value="0" aria-label="Runner 2 Face Stat">
+
+                        <label for="runner2-muscle">Muscle Stat:</label>
+                        <input type="number" id="runner2-muscle" name="runner2-muscle" min="0" max="10" value="0" aria-label="Runner 2 Muscle Stat">
+
+                        <label for="runner2-hacker">Hacker Stat:</label>
+                        <input type="number" id="runner2-hacker" name="runner2-hacker" min="0" max="10" value="0" aria-label="Runner 2 Hacker Stat">
+
+                        <label for="runner2-ninja">Ninja Stat:</label>
+                        <input type="number" id="runner2-ninja" name="runner2-ninja" min="0" max="10" value="0" aria-label="Runner 2 Ninja Stat">
+                    </div>
+                </div>
+
+                <div class="runner-slot" data-slot="2">
+                    <h3>Runner 3</h3>
+                    <label for="runner3-type">Type:</label>
+                    <select id="runner3-type" name="runner3-type" aria-label="Runner 3 Type">
+                        <option value="Empty">Empty</option>
+                        <option value="Face">Face</option>
+                        <option value="Muscle">Muscle</option>
+                        <option value="Hacker">Hacker</option>
+                        <option value="Ninja">Ninja</option>
+                    </select>
+
+                    <div class="runner-stats">
+                        <label for="runner3-face">Face Stat:</label>
+                        <input type="number" id="runner3-face" name="runner3-face" min="0" max="10" value="0" aria-label="Runner 3 Face Stat">
+
+                        <label for="runner3-muscle">Muscle Stat:</label>
+                        <input type="number" id="runner3-muscle" name="runner3-muscle" min="0" max="10" value="0" aria-label="Runner 3 Muscle Stat">
+
+                        <label for="runner3-hacker">Hacker Stat:</label>
+                        <input type="number" id="runner3-hacker" name="runner3-hacker" min="0" max="10" value="0" aria-label="Runner 3 Hacker Stat">
+
+                        <label for="runner3-ninja">Ninja Stat:</label>
+                        <input type="number" id="runner3-ninja" name="runner3-ninja" min="0" max="10" value="0" aria-label="Runner 3 Ninja Stat">
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <aside class="game-state-section" role="complementary" aria-label="Game State">
+            <h2>Game State</h2>
+            <div class="player-info">
+                <div class="stat-display">
+                    <label for="player-money">Player Money:</label>
+                    <span id="player-money" class="stat-value" aria-label="Current player money">$0</span>
+                </div>
+
+                <div class="stat-display">
+                    <label for="player-risk">Player Risk:</label>
+                    <span id="player-risk" class="stat-value" aria-label="Current player risk">0</span>
+                </div>
+
+                <div class="stat-display">
+                    <label for="contracts-completed">Contracts Completed:</label>
+                    <span id="contracts-completed" class="stat-value" aria-label="Number of completed contracts">0</span>
+                </div>
+            </div>
+
+            <div class="loading-status">
+                <p id="loading-message" aria-live="polite">Ready to load contract</p>
+            </div>
+        </aside>
+
+        <footer class="options-section" role="complementary" aria-label="Contract Options">
+            <h2>Contract Options</h2>
+            <div class="contract-controls">
+                <div class="file-input-group">
+                    <label for="contract-file">Load Contract:</label>
+                    <input type="file" id="contract-file" name="contract-file" accept=".csv" aria-label="Select contract CSV file">
+                    <button type="button" id="load-example" aria-label="Load example contract">Load Example</button>
+                </div>
+
+                <div class="contract-info">
+                    <span id="contract-name" class="contract-title">No contract loaded</span>
+                </div>
+
+                <div class="action-buttons">
+                    <button type="button" id="validate-config" disabled aria-label="Validate runner configuration">Validate Configuration</button>
+                    <button type="button" id="execute-contract" disabled aria-label="Execute contract">Execute Contract</button>
+                </div>
+            </div>
+        </footer>
+
+        <section class="preview-section" role="complementary" aria-label="Current Pools Preview">
+            <h2>Current Pools</h2>
+            <div class="pools-display">
+                <div class="pool-item">
+                    <label>Damage:</label>
+                    <span id="current-damage" class="pool-value">0</span>
+                </div>
+                <div class="pool-item">
+                    <label>Risk:</label>
+                    <span id="current-risk" class="pool-value">0</span>
+                </div>
+                <div class="pool-item">
+                    <label>Money:</label>
+                    <span id="current-money" class="pool-value">$0</span>
+                </div>
+                <div class="pool-item">
+                    <label>Grit:</label>
+                    <span id="current-grit" class="pool-value">0</span>
+                </div>
+                <div class="pool-item">
+                    <label>Veil:</label>
+                    <span id="current-veil" class="pool-value">0</span>
+                </div>
+            </div>
+            <div id="prevention-info" class="prevention-display" style="display: none;"></div>
+        </section>
+    </div>
+
+    <script src="js/csvLoader.js"></script>
+    <script src="js/gameState.js"></script>
+    <script src="js/visualPrototype.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
