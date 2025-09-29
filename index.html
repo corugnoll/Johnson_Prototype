@@ -171,6 +171,86 @@
         </section>
     </div>
 
+    <!-- Contract Execution Results Modal -->
+    <div id="results-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Contract Execution Results</h2>
+                <button type="button" id="close-results" class="close-button" aria-label="Close results">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="execution-status">
+                    <h3 id="execution-outcome">Contract Completed!</h3>
+                    <p id="execution-message">Your team has successfully completed the contract.</p>
+                </div>
+
+                <div class="results-comparison">
+                    <div class="comparison-section">
+                        <h4>Before Execution</h4>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <label>Money:</label>
+                                <span id="before-money">$0</span>
+                            </div>
+                            <div class="stat-item">
+                                <label>Risk:</label>
+                                <span id="before-risk">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <label>Contracts:</label>
+                                <span id="before-contracts">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="comparison-section">
+                        <h4>After Execution</h4>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <label>Money:</label>
+                                <span id="after-money">$0</span>
+                            </div>
+                            <div class="stat-item">
+                                <label>Risk:</label>
+                                <span id="after-risk">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <label>Contracts:</label>
+                                <span id="after-contracts">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="execution-details">
+                    <h4>Execution Summary</h4>
+                    <div class="details-grid">
+                        <div class="detail-item">
+                            <label>Final Damage:</label>
+                            <span id="final-damage">0</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Final Risk:</label>
+                            <span id="final-risk">0</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Money Earned:</label>
+                            <span id="money-earned">$0</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Prevention Applied:</label>
+                            <span id="prevention-applied">None</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="start-new-contract" class="btn btn-primary">Start New Contract</button>
+                <button type="button" id="continue-session" class="btn btn-secondary">Continue Session</button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/csvLoader.js"></script>
     <script src="js/gameState.js"></script>
     <script src="js/visualPrototype.js"></script>

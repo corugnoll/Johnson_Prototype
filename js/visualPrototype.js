@@ -22,6 +22,12 @@ class VisualPrototypeRenderer {
         this.dragStartPos = { x: 0, y: 0 };
         this.treeBounds = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
 
+        // Zoom state management
+        this.zoomLevel = 1.0;
+        this.minZoom = 0.25;
+        this.maxZoom = 3.0;
+        this.zoomSpeed = 0.1;
+
         // Node colors with exact hex values from specification
         this.nodeColors = {
             'Red': '#FF6467',
@@ -220,9 +226,10 @@ class VisualPrototypeRenderer {
         // Clear canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Apply pan transformation
+        // Apply pan and zoom transformations
         this.ctx.save();
         this.ctx.translate(this.panOffset.x, this.panOffset.y);
+        this.ctx.scale(this.zoomLevel, this.zoomLevel);
 
         // Render connections first (so they appear behind nodes)
         this.renderConnections();
@@ -547,15 +554,15 @@ class VisualPrototypeRenderer {
     }
 
     /**
-     * Get node at specific position (accounting for pan offset)
+     * Get node at specific position (accounting for pan offset and zoom)
      * @param {number} x - X coordinate
      * @param {number} y - Y coordinate
      * @returns {VisualNode|null} Node at position or null
      */
     getNodeAtPosition(x, y) {
-        // Convert screen coordinates to world coordinates
-        const worldX = x - this.panOffset.x;
-        const worldY = y - this.panOffset.y;
+        // Convert screen coordinates to world coordinates (account for pan and zoom)
+        const worldX = (x - this.panOffset.x) / this.zoomLevel;
+        const worldY = (y - this.panOffset.y) / this.zoomLevel;
 
         for (let [nodeId, pos] of this.nodePositions) {
             if (worldX >= pos.x && worldX <= pos.x + pos.width &&
@@ -654,20 +661,42 @@ class VisualPrototypeRenderer {
     }
 
     /**
-     * Handle wheel events for scrolling
+     * Handle wheel events for zooming
      * @param {WheelEvent} event - Wheel event
      */
     handleWheel(event) {
         event.preventDefault();
 
-        const scrollSpeed = 30;
-        this.panOffset.x -= event.deltaX * scrollSpeed / 100;
-        this.panOffset.y -= event.deltaY * scrollSpeed / 100;
+        // Get mouse position relative to canvas for zoom center
+        const rect = this.canvas.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
 
-        // Apply boundary constraints
-        this.constrainPanOffset();
+        // Calculate zoom change (negative deltaY = zoom in, positive = zoom out)
+        const zoomDirection = event.deltaY < 0 ? 1 : -1;
+        const zoomChange = zoomDirection * this.zoomSpeed;
+        const newZoomLevel = this.zoomLevel + zoomChange;
 
-        this.render();
+        // Apply zoom constraints
+        const constrainedZoom = Math.max(this.minZoom, Math.min(this.maxZoom, newZoomLevel));
+
+        if (constrainedZoom !== this.zoomLevel) {
+            // Calculate world coordinates before zoom
+            const worldX = (mouseX - this.panOffset.x) / this.zoomLevel;
+            const worldY = (mouseY - this.panOffset.y) / this.zoomLevel;
+
+            // Update zoom level
+            this.zoomLevel = constrainedZoom;
+
+            // Adjust pan offset to keep mouse position centered
+            this.panOffset.x = mouseX - (worldX * this.zoomLevel);
+            this.panOffset.y = mouseY - (worldY * this.zoomLevel);
+
+            // Apply boundary constraints
+            this.constrainPanOffset();
+
+            this.render();
+        }
     }
 
     /**
@@ -821,7 +850,7 @@ class VisualPrototypeRenderer {
     }
 
     /**
-     * Constrain pan offset to keep tree content visible
+     * Constrain pan offset to keep tree content visible (accounting for zoom)
      */
     constrainPanOffset() {
         if (!this.contractData) return;
@@ -829,13 +858,42 @@ class VisualPrototypeRenderer {
         const canvasWidth = this.canvas.width;
         const canvasHeight = this.canvas.height;
 
-        // Calculate maximum allowed pan offset
-        const maxPanX = Math.max(0, this.treeBounds.maxX - canvasWidth);
-        const minPanX = Math.min(0, this.treeBounds.minX);
-        const maxPanY = Math.max(0, this.treeBounds.maxY - canvasHeight);
-        const minPanY = Math.min(0, this.treeBounds.minY);
+        // Calculate tree bounds in screen space (with zoom applied)
+        const screenTreeMinX = this.treeBounds.minX * this.zoomLevel;
+        const screenTreeMinY = this.treeBounds.minY * this.zoomLevel;
+        const screenTreeMaxX = this.treeBounds.maxX * this.zoomLevel;
+        const screenTreeMaxY = this.treeBounds.maxY * this.zoomLevel;
 
-        // Constrain pan offset
+        // Calculate tree dimensions in screen space
+        const treeWidth = screenTreeMaxX - screenTreeMinX;
+        const treeHeight = screenTreeMaxY - screenTreeMinY;
+
+        // Calculate pan constraints
+        let minPanX, maxPanX, minPanY, maxPanY;
+
+        // Horizontal constraints
+        if (treeWidth <= canvasWidth) {
+            // Tree fits horizontally - center it and don't allow much panning
+            const centerOffset = (canvasWidth - treeWidth) / 2;
+            minPanX = maxPanX = centerOffset - screenTreeMinX;
+        } else {
+            // Tree is wider than canvas - allow panning to see all content
+            minPanX = canvasWidth - screenTreeMaxX; // Leftmost position (shows right edge)
+            maxPanX = -screenTreeMinX; // Rightmost position (shows left edge)
+        }
+
+        // Vertical constraints
+        if (treeHeight <= canvasHeight) {
+            // Tree fits vertically - center it and don't allow much panning
+            const centerOffset = (canvasHeight - treeHeight) / 2;
+            minPanY = maxPanY = centerOffset - screenTreeMinY;
+        } else {
+            // Tree is taller than canvas - allow panning to see all content
+            minPanY = canvasHeight - screenTreeMaxY; // Topmost position (shows bottom edge)
+            maxPanY = -screenTreeMinY; // Bottommost position (shows top edge)
+        }
+
+        // Apply constraints
         this.panOffset.x = Math.max(minPanX, Math.min(maxPanX, this.panOffset.x));
         this.panOffset.y = Math.max(minPanY, Math.min(maxPanY, this.panOffset.y));
     }
@@ -927,6 +985,58 @@ class VisualPrototypeRenderer {
      */
     setNodeSelectionCallback(callback) {
         this.onNodeSelectionChange = callback;
+    }
+
+    /**
+     * Reset zoom to default level
+     */
+    resetZoom() {
+        this.zoomLevel = 1.0;
+        this.panOffset = { x: 0, y: 0 };
+        this.render();
+    }
+
+    /**
+     * Set zoom level programmatically
+     * @param {number} zoomLevel - Target zoom level
+     * @param {number} centerX - Optional center X coordinate
+     * @param {number} centerY - Optional center Y coordinate
+     */
+    setZoom(zoomLevel, centerX = null, centerY = null) {
+        const constrainedZoom = Math.max(this.minZoom, Math.min(this.maxZoom, zoomLevel));
+
+        if (centerX !== null && centerY !== null) {
+            // Calculate world coordinates before zoom
+            const worldX = (centerX - this.panOffset.x) / this.zoomLevel;
+            const worldY = (centerY - this.panOffset.y) / this.zoomLevel;
+
+            // Update zoom level
+            this.zoomLevel = constrainedZoom;
+
+            // Adjust pan offset to keep center position centered
+            this.panOffset.x = centerX - (worldX * this.zoomLevel);
+            this.panOffset.y = centerY - (worldY * this.zoomLevel);
+        } else {
+            this.zoomLevel = constrainedZoom;
+        }
+
+        this.constrainPanOffset();
+        this.render();
+    }
+
+    /**
+     * Get current zoom information
+     * @returns {Object} Zoom state information
+     */
+    getZoomInfo() {
+        return {
+            currentZoom: this.zoomLevel,
+            minZoom: this.minZoom,
+            maxZoom: this.maxZoom,
+            zoomSpeed: this.zoomSpeed,
+            canZoomIn: this.zoomLevel < this.maxZoom,
+            canZoomOut: this.zoomLevel > this.minZoom
+        };
     }
 
     /**

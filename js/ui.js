@@ -448,6 +448,234 @@ class UIManager {
     }
 
     /**
+     * Show contract execution results modal
+     * @param {Object} executionResults - Results from contract execution
+     */
+    showExecutionResults(executionResults) {
+        const modal = document.getElementById('results-modal');
+        if (!modal) {
+            console.error('Results modal not found');
+            return;
+        }
+
+        // Update execution status
+        const statusElement = document.querySelector('.execution-status');
+        const outcomeElement = document.getElementById('execution-outcome');
+        const messageElement = document.getElementById('execution-message');
+
+        if (executionResults.success) {
+            statusElement.className = 'execution-status success';
+            outcomeElement.textContent = 'Contract Completed Successfully!';
+            messageElement.textContent = 'Your team has successfully completed the contract with minimal risk.';
+        } else {
+            statusElement.className = 'execution-status failure';
+            outcomeElement.textContent = 'Contract Completed with Complications';
+            messageElement.textContent = 'The contract was completed but with significant damage or risk.';
+        }
+
+        // Update before/after comparison
+        this.updateElementText('before-money', `$${executionResults.preExecution.money}`);
+        this.updateElementText('before-risk', executionResults.preExecution.risk);
+        this.updateElementText('before-contracts', executionResults.preExecution.contracts);
+
+        this.updateElementText('after-money', `$${executionResults.postExecution.money}`);
+        this.updateElementText('after-risk', executionResults.postExecution.risk);
+        this.updateElementText('after-contracts', executionResults.postExecution.contracts);
+
+        // Update execution details
+        this.updateElementText('final-damage', executionResults.finalDamage);
+        this.updateElementText('final-risk', executionResults.finalRisk);
+        this.updateElementText('money-earned', `$${executionResults.moneyEarned}`);
+        this.updateElementText('prevention-applied', executionResults.preventionApplied);
+
+        // Show modal
+        modal.style.display = 'flex';
+
+        // Set up modal event listeners if not already set
+        this.setupResultsModalListeners();
+    }
+
+    /**
+     * Hide execution results modal
+     */
+    hideExecutionResults() {
+        const modal = document.getElementById('results-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+    /**
+     * Set up event listeners for results modal
+     */
+    setupResultsModalListeners() {
+        // Prevent setting up listeners multiple times
+        if (this.resultsModalListenersSetup) {
+            return;
+        }
+
+        const modal = document.getElementById('results-modal');
+        const closeButton = document.getElementById('close-results');
+        const newContractButton = document.getElementById('start-new-contract');
+        const continueButton = document.getElementById('continue-session');
+
+        if (closeButton) {
+            closeButton.addEventListener('click', () => {
+                this.hideExecutionResults();
+            });
+        }
+
+        if (newContractButton) {
+            newContractButton.addEventListener('click', () => {
+                this.hideExecutionResults();
+                this.resetContractForNew();
+            });
+        }
+
+        if (continueButton) {
+            continueButton.addEventListener('click', () => {
+                this.hideExecutionResults();
+                // Just close modal, keep current state
+            });
+        }
+
+        // Close modal when clicking outside
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    this.hideExecutionResults();
+                }
+            });
+        }
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('results-modal');
+                if (modal && modal.style.display === 'flex') {
+                    this.hideExecutionResults();
+                }
+            }
+        });
+
+        this.resultsModalListenersSetup = true;
+    }
+
+    /**
+     * Reset interface for new contract
+     */
+    resetContractForNew() {
+        // Reset contract-specific UI elements
+        this.updateContractDisplay('No contract loaded');
+
+        // Reset pools display
+        this.updateElementText('current-damage', '0');
+        this.updateElementText('current-risk', '0');
+        this.updateElementText('current-money', '$0');
+        this.updateElementText('current-grit', '0');
+        this.updateElementText('current-veil', '0');
+
+        // Reset buttons
+        const validateBtn = document.getElementById('validate-config');
+        const executeBtn = document.getElementById('execute-contract');
+
+        if (validateBtn) validateBtn.disabled = true;
+        if (executeBtn) executeBtn.disabled = false; // Keep enabled for next execution
+
+        // Clear file input
+        const fileInput = document.getElementById('contract-file');
+        if (fileInput) fileInput.value = '';
+
+        // Reset canvas
+        if (this.canvas) {
+            this.drawPlaceholder();
+        }
+
+        // Clear prevention display
+        const preventionElement = document.getElementById('prevention-info');
+        if (preventionElement) {
+            preventionElement.innerHTML = '';
+            preventionElement.style.display = 'none';
+        }
+
+        // Reset contract data in game state
+        if (this.gameState) {
+            this.gameState.resetContract();
+        }
+
+        this.updateLoadingMessage('Ready to load next contract');
+    }
+
+    /**
+     * Update game state display
+     */
+    updateGameStateDisplay() {
+        if (!this.gameState) return;
+
+        const gameState = this.gameState.getGameState();
+
+        this.updateElementText('player-money', `$${gameState.playerMoney}`);
+        this.updateElementText('player-risk', gameState.playerRisk);
+        this.updateElementText('contracts-completed', gameState.contractsCompleted);
+    }
+
+    /**
+     * Set loading state for execution button
+     * @param {boolean} loading - Whether to show loading state
+     */
+    setExecutionLoading(loading) {
+        const executeBtn = document.getElementById('execute-contract');
+        if (!executeBtn) return;
+
+        if (loading) {
+            executeBtn.classList.add('loading');
+            executeBtn.disabled = true;
+            executeBtn.setAttribute('aria-label', 'Executing contract...');
+        } else {
+            executeBtn.classList.remove('loading');
+            executeBtn.disabled = false;
+            executeBtn.setAttribute('aria-label', 'Execute contract');
+        }
+    }
+
+    /**
+     * Load and restore UI state from session
+     * @param {Object} sessionData - Session data to restore
+     */
+    restoreUIFromSession(sessionData) {
+        // Restore runner configuration
+        if (sessionData.runners && Array.isArray(sessionData.runners)) {
+            for (let i = 0; i < Math.min(sessionData.runners.length, 3); i++) {
+                const runner = sessionData.runners[i];
+                const slotIndex = i + 1;
+
+                // Restore runner type
+                const typeSelect = document.getElementById(`runner${slotIndex}-type`);
+                if (typeSelect && runner.type) {
+                    typeSelect.value = runner.type;
+                }
+
+                // Restore runner stats
+                if (runner.stats) {
+                    const faceInput = document.getElementById(`runner${slotIndex}-face`);
+                    const muscleInput = document.getElementById(`runner${slotIndex}-muscle`);
+                    const hackerInput = document.getElementById(`runner${slotIndex}-hacker`);
+                    const ninjaInput = document.getElementById(`runner${slotIndex}-ninja`);
+
+                    if (faceInput) faceInput.value = runner.stats.face || 0;
+                    if (muscleInput) muscleInput.value = runner.stats.muscle || 0;
+                    if (hackerInput) hackerInput.value = runner.stats.hacker || 0;
+                    if (ninjaInput) ninjaInput.value = runner.stats.ninja || 0;
+                }
+            }
+        }
+
+        // Update game state display
+        this.updateGameStateDisplay();
+        this.updatePoolsDisplay();
+    }
+
+    /**
      * Get UI state for debugging
      */
     getDebugInfo() {
@@ -455,7 +683,8 @@ class UIManager {
             isInitialized: this.isInitialized,
             hasCanvas: !!this.canvas,
             canvasSize: this.canvas ? { width: this.canvas.width, height: this.canvas.height } : null,
-            runnerConfig: this.getRunnerConfigFromUI()
+            runnerConfig: this.getRunnerConfigFromUI(),
+            resultsModalListenersSetup: !!this.resultsModalListenersSetup
         };
     }
 }

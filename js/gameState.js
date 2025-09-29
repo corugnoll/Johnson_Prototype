@@ -632,6 +632,204 @@ class GameState {
     }
 
     /**
+     * Execute contract with current configuration
+     * @returns {Object} Execution results
+     */
+    executeContract() {
+        const startTime = performance.now();
+
+        // Validate configuration before execution
+        if (!this.validateConfiguration()) {
+            throw new Error('Invalid configuration for contract execution');
+        }
+
+        // Calculate current pools one final time
+        this.calculateCurrentPools();
+
+        // Store pre-execution state
+        const preExecutionState = {
+            money: this.playerMoney,
+            risk: this.playerRisk,
+            contracts: this.contractsCompleted,
+            currentPools: { ...this.currentPools }
+        };
+
+        // Apply final effects to player state
+        const finalDamage = Math.max(0, this.currentPools.damage);
+        const finalRisk = Math.max(0, this.currentPools.risk);
+        const moneyEarned = Math.max(0, this.currentPools.money);
+
+        // Update player state
+        this.playerMoney += moneyEarned;
+        this.playerRisk += finalRisk;
+        this.contractsCompleted += 1;
+
+        // Determine execution success/failure
+        const success = finalDamage <= 5 && finalRisk <= 10; // Basic thresholds
+
+        // Create execution results
+        const executionResults = {
+            success: success,
+            preExecution: preExecutionState,
+            postExecution: {
+                money: this.playerMoney,
+                risk: this.playerRisk,
+                contracts: this.contractsCompleted
+            },
+            finalPools: { ...this.currentPools },
+            finalDamage: finalDamage,
+            finalRisk: finalRisk,
+            moneyEarned: moneyEarned,
+            preventionApplied: this.getPreventionDetails(),
+            selectedNodesCount: this.selectedNodes.length,
+            executionTime: performance.now() - startTime
+        };
+
+        // Save session state after execution
+        this.saveSessionState();
+
+        return executionResults;
+    }
+
+    /**
+     * Get prevention mechanics details for results display
+     * @returns {string} Prevention details
+     */
+    getPreventionDetails() {
+        const damagePreventionPossible = Math.floor(this.currentPools.grit / 2);
+        const riskPreventionPossible = Math.floor(this.currentPools.veil / 2);
+
+        if (damagePreventionPossible === 0 && riskPreventionPossible === 0) {
+            return 'None';
+        }
+
+        const details = [];
+        if (damagePreventionPossible > 0) {
+            details.push(`${damagePreventionPossible} Damage prevented by Grit`);
+        }
+        if (riskPreventionPossible > 0) {
+            details.push(`${riskPreventionPossible} Risk prevented by Veil`);
+        }
+
+        return details.join(', ');
+    }
+
+    /**
+     * Reset contract state for new contract
+     */
+    resetContract() {
+        this.selectedNodes = [];
+        this.contractData = null;
+        this.currentPools = this.initializePools();
+
+        // Clear UI state but preserve session data
+        console.log('Contract state reset for new contract');
+    }
+
+    /**
+     * Reset entire game session
+     */
+    resetSession() {
+        this.resetContract();
+        this.runners = this.initializeRunners();
+        this.playerMoney = 0;
+        this.playerRisk = 0;
+        this.contractsCompleted = 0;
+
+        // Clear session storage
+        this.clearSessionState();
+        console.log('Full game session reset');
+    }
+
+    /**
+     * Save current state to session storage
+     */
+    saveSessionState() {
+        try {
+            const sessionData = {
+                playerMoney: this.playerMoney,
+                playerRisk: this.playerRisk,
+                contractsCompleted: this.contractsCompleted,
+                runners: this.runners,
+                timestamp: Date.now()
+            };
+
+            sessionStorage.setItem('johnsonGameState', JSON.stringify(sessionData));
+            console.log('Session state saved successfully');
+        } catch (error) {
+            console.warn('Failed to save session state:', error);
+        }
+    }
+
+    /**
+     * Load state from session storage
+     * @returns {boolean} True if state was loaded successfully
+     */
+    loadSessionState() {
+        try {
+            const sessionData = sessionStorage.getItem('johnsonGameState');
+            if (!sessionData) {
+                return false;
+            }
+
+            const parsedData = JSON.parse(sessionData);
+
+            // Validate session data structure
+            if (typeof parsedData.playerMoney !== 'number' ||
+                typeof parsedData.playerRisk !== 'number' ||
+                typeof parsedData.contractsCompleted !== 'number' ||
+                !Array.isArray(parsedData.runners)) {
+                console.warn('Invalid session data structure, ignoring');
+                return false;
+            }
+
+            // Check if session is not too old (24 hours)
+            const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+            if (parsedData.timestamp && (Date.now() - parsedData.timestamp) > maxAge) {
+                console.log('Session data too old, starting fresh');
+                this.clearSessionState();
+                return false;
+            }
+
+            // Restore state
+            this.playerMoney = parsedData.playerMoney;
+            this.playerRisk = parsedData.playerRisk;
+            this.contractsCompleted = parsedData.contractsCompleted;
+            this.runners = parsedData.runners;
+
+            console.log('Session state loaded successfully');
+            return true;
+        } catch (error) {
+            console.warn('Failed to load session state:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Clear session storage
+     */
+    clearSessionState() {
+        try {
+            sessionStorage.removeItem('johnsonGameState');
+            console.log('Session state cleared');
+        } catch (error) {
+            console.warn('Failed to clear session state:', error);
+        }
+    }
+
+    /**
+     * Check if session state exists
+     * @returns {boolean} True if session state exists
+     */
+    hasSessionState() {
+        try {
+            return !!sessionStorage.getItem('johnsonGameState');
+        } catch (error) {
+            return false;
+        }
+    }
+
+    /**
      * Get debug information
      * @returns {Object} Debug information
      */
@@ -642,7 +840,8 @@ class GameState {
             selectedNodes: this.selectedNodes,
             runners: this.getRunnerSummary(),
             currentPools: this.currentPools,
-            gameState: this.getGameState()
+            gameState: this.getGameState(),
+            hasSessionState: this.hasSessionState()
         };
     }
 }

@@ -3,7 +3,9 @@
     "allow": [
       "Bash(node:*)",
       "Bash(cat:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(git push:*)",
+      "Bash(git add:*)"
     ]
   },
   "outputStyle": "Explanatory"

@@ -33,14 +33,32 @@ class JohnsonApp {
                 console.warn('Canvas element not found - visual prototype will not be available');
             }
 
+            // Load session state if available
+            const sessionLoaded = this.gameState.loadSessionState();
+            if (sessionLoaded) {
+                this.updateLoadingMessage('Session state restored successfully.');
+                console.log('Previous session restored');
+            }
+
             // Set up event listeners
             this.setupEventListeners();
 
             // Initialize UI
             await this.uiManager.init();
 
-            // Update loading status
-            this.updateLoadingMessage('Application initialized. Ready to load contract.');
+            // Restore UI from session if session was loaded
+            if (sessionLoaded) {
+                const sessionData = {
+                    runners: this.gameState.runners,
+                    playerMoney: this.gameState.playerMoney,
+                    playerRisk: this.gameState.playerRisk,
+                    contractsCompleted: this.gameState.contractsCompleted
+                };
+                this.uiManager.restoreUIFromSession(sessionData);
+                this.updateLoadingMessage('Previous session restored. Ready to load contract.');
+            } else {
+                this.updateLoadingMessage('Application initialized. Ready to load contract.');
+            }
 
             this.isInitialized = true;
             console.log('Johnson Prototype application initialized successfully');
@@ -136,9 +154,11 @@ class JohnsonApp {
 
                 this.updateLoadingMessage(`Contract "${file.name}" loaded successfully.`);
 
-                // Enable validation button
+                // Enable validation button and reset execution button
                 const validateBtn = document.getElementById('validate-config');
+                const executeBtn = document.getElementById('execute-contract');
                 if (validateBtn) validateBtn.disabled = false;
+                if (executeBtn) executeBtn.disabled = true;
             } else {
                 throw new Error('No valid data found in contract file');
             }
@@ -194,9 +214,11 @@ class JohnsonApp {
 
                 this.updateLoadingMessage('Example contract loaded successfully.');
 
-                // Enable validation button
+                // Enable validation button and reset execution button
                 const validateBtn = document.getElementById('validate-config');
+                const executeBtn = document.getElementById('execute-contract');
                 if (validateBtn) validateBtn.disabled = false;
+                if (executeBtn) executeBtn.disabled = true;
             } else {
                 throw new Error('No valid data found in example contract');
             }
@@ -215,6 +237,8 @@ class JohnsonApp {
         if (this.gameState) {
             this.gameState.setRunnerType(slotIndex, runnerType);
             this.uiManager.updatePoolsDisplay();
+            // Save session state when runner configuration changes
+            this.gameState.saveSessionState();
         }
     }
 
@@ -228,6 +252,8 @@ class JohnsonApp {
             this.uiManager.updatePoolsDisplay();
             // Sync visual prototype with updated calculations
             this.syncVisualWithGameState();
+            // Save session state when runner configuration changes
+            this.gameState.saveSessionState();
         }
     }
 
@@ -308,19 +334,51 @@ class JohnsonApp {
     /**
      * Handle contract execution
      */
-    handleExecuteContract() {
+    async handleExecuteContract() {
         if (!this.gameState || !this.gameState.contractData) {
             this.updateLoadingMessage('No contract loaded for execution.');
             return;
         }
 
         try {
-            // For now, just simulate contract execution
-            this.updateLoadingMessage('Contract execution feature coming in next milestone.');
-            console.log('Contract execution requested - placeholder for future implementation');
+            // Show loading state
+            this.uiManager.setExecutionLoading(true);
+            this.updateLoadingMessage('Executing contract...');
+
+            // Add small delay to show loading state
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Execute the contract
+            const executionResults = this.gameState.executeContract();
+
+            // Update UI with new game state
+            this.uiManager.updateGameStateDisplay();
+
+            // Clear loading state
+            this.uiManager.setExecutionLoading(false);
+
+            // Show results modal
+            this.uiManager.showExecutionResults(executionResults);
+
+            // Update loading message
+            if (executionResults.success) {
+                this.updateLoadingMessage('Contract completed successfully!');
+            } else {
+                this.updateLoadingMessage('Contract completed with complications.');
+            }
+
+            // Log execution details for debugging
+            console.log('Contract execution completed:', {
+                success: executionResults.success,
+                moneyEarned: executionResults.moneyEarned,
+                finalDamage: executionResults.finalDamage,
+                finalRisk: executionResults.finalRisk,
+                executionTime: executionResults.executionTime
+            });
 
         } catch (error) {
             console.error('Error executing contract:', error);
+            this.uiManager.setExecutionLoading(false);
             this.updateLoadingMessage(`Execution error: ${error.message}`);
         }
     }

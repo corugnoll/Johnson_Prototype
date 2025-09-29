@@ -88,14 +88,21 @@
                 <li>Verify all 6 node colors render with correct hex values</li>
                 <li>Test connection lines between nodes</li>
                 <li>Verify interactive node selection works</li>
+                <li><strong>Test pan constraint fixes: Try dragging at different zoom levels</strong></li>
+                <li><strong>Ensure all content is accessible through dragging</strong></li>
                 <li>Confirm no console errors during operation</li>
             </ul>
+            <p><strong>Pan Constraint Testing:</strong> After loading a contract, use zoom in/out buttons and try dragging the canvas. You should be able to reach all parts of the content at any zoom level.</p>
         </div>
 
         <div class="controls">
-            <button id="load-example">Load Example Contract</button>
+            <button id="load-example">Load Small Contract</button>
+            <button id="load-large">Load Large Contract</button>
             <button id="clear-selections">Clear Selections</button>
             <button id="debug-info">Show Debug Info</button>
+            <button id="zoom-in">Zoom In</button>
+            <button id="zoom-out">Zoom Out</button>
+            <button id="reset-zoom">Reset Zoom</button>
         </div>
 
         <div class="status" id="status">Ready to test. Click "Load Example Contract" to begin.</div>
@@ -128,12 +135,28 @@
                     this.loadExampleContract();
                 });
 
+                document.getElementById('load-large').addEventListener('click', () => {
+                    this.loadLargeContract();
+                });
+
                 document.getElementById('clear-selections').addEventListener('click', () => {
                     this.clearSelections();
                 });
 
                 document.getElementById('debug-info').addEventListener('click', () => {
                     this.showDebugInfo();
+                });
+
+                document.getElementById('zoom-in').addEventListener('click', () => {
+                    this.zoomIn();
+                });
+
+                document.getElementById('zoom-out').addEventListener('click', () => {
+                    this.zoomOut();
+                });
+
+                document.getElementById('reset-zoom').addEventListener('click', () => {
+                    this.resetZoom();
                 });
             }
 
@@ -172,6 +195,52 @@
                 }
             }
 
+            async loadLargeContract() {
+                try {
+                    this.updateStatus('Loading large contract for pan testing...');
+
+                    // Initialize renderer if not already done
+                    if (!this.visualRenderer) {
+                        const canvas = document.getElementById('testCanvas');
+                        this.visualRenderer = new VisualPrototypeRenderer(canvas);
+                    }
+
+                    // Larger test dataset with multiple layers and synergy nodes
+                    const csvText = `Node ID,Description,Effect Desc,Effect 1,Effect 2,Type,Color,Layer,Slot,Connections
+1,Start Node,"+2 Grit",None;+;2;Grit,,Effect,Red,0,CE,2;3;4
+2,Path A Start,"+1 Dam",None;+;1;Damage,,Effect,Green,1,U1,5;6
+3,Path B Start,"+1 Risk",None;+;1;Risk,,Effect,Purple,1,CE,7;8
+4,Path C Start,"+1 Veil",None;+;1;Veil,,Effect,Blue,1,D1,9;10
+5,Deep A1,"+2 Dam",None;+;2;Damage,,Effect,Green,2,U2,11
+6,Deep A2,"+1 Grit",None;+;1;Grit,,Effect,Yellow,2,U1,11
+7,Deep B1,"+2 Risk",None;+;2;Risk,,Effect,Purple,2,CE,12
+8,Deep B2,"+1 Money",None;+;1;Money,,Effect,Grey,2,D1,12
+9,Deep C1,"+2 Veil",None;+;2;Veil,,Effect,Blue,3,U1,13
+10,Deep C2,"+1 Dam",None;+;1;Damage,,Effect,Red,3,CE,13
+11,Merge A,"+3 Power",None;+;3;Damage,,Effect,Yellow,3,D1,14
+12,Merge B,"+3 Stealth",None;+;3;Veil,,Effect,Purple,3,D2,14
+13,Merge C,"+3 Resources",None;+;3;Money,,Effect,Blue,4,CE,15
+14,Penultimate,"+4 Grit",None;+;4;Grit,,Effect,Red,4,U1,15;16
+15,Final Choice,"+5 Money",None;+;5;Money,,Effect,Green,5,CE,17
+16,Alt End,"+3 All Stats",None;+;3;Grit,,Effect,Yellow,5,D1,
+17,Ultimate End,"+10 Money",None;+;10;Money,,Effect,Red,6,CE,
+S1,Combat Synergy,"+1 per Red",NodeColor;+;1;Damage;Red,RunnerType;*;2;Damage;Muscle,Synergy,Red,0,0,
+S2,Stealth Synergy,"+1 per Blue",NodeColor;+;1;Veil;Blue,RunnerType;*;2;Veil;Ninja,Synergy,Blue,0,0,
+S3,Money Synergy,"+1 per Green",NodeColor;+;1;Money;Green,RunnerType;*;2;Money;Face,Synergy,Green,0,0,`;
+
+                    const contractData = this.csvLoader.parseCSV(csvText);
+                    const visualContractData = this.csvLoader.createVisualContractData(contractData);
+
+                    this.visualRenderer.loadContract(visualContractData);
+
+                    this.updateStatus('Large contract loaded! Try zooming and panning to test constraints.');
+
+                } catch (error) {
+                    console.error('Error loading large contract:', error);
+                    this.updateStatus(`Error: ${error.message}`);
+                }
+            }
+
             clearSelections() {
                 if (this.visualRenderer) {
                     this.visualRenderer.clearSelections();
@@ -187,11 +256,52 @@
 
                 if (this.visualRenderer) {
                     const state = this.visualRenderer.getVisualizationState();
-                    debugText.textContent = JSON.stringify(state, null, 2);
+                    const zoomInfo = this.visualRenderer.getZoomInfo();
+                    const debugData = {
+                        visualization: state,
+                        zoom: zoomInfo,
+                        panOffset: {
+                            x: this.visualRenderer.panOffset.x,
+                            y: this.visualRenderer.panOffset.y
+                        },
+                        treeBounds: this.visualRenderer.treeBounds
+                    };
+                    debugText.textContent = JSON.stringify(debugData, null, 2);
                     debugOutput.style.display = 'block';
                 } else {
                     debugText.textContent = 'No visual renderer initialized yet.';
                     debugOutput.style.display = 'block';
+                }
+            }
+
+            zoomIn() {
+                if (this.visualRenderer) {
+                    const currentZoom = this.visualRenderer.zoomLevel;
+                    const newZoom = Math.min(this.visualRenderer.maxZoom, currentZoom + 0.25);
+                    this.visualRenderer.setZoom(newZoom);
+                    this.updateStatus(`Zoomed in to ${(newZoom * 100).toFixed(0)}%`);
+                } else {
+                    this.updateStatus('No contract loaded yet.');
+                }
+            }
+
+            zoomOut() {
+                if (this.visualRenderer) {
+                    const currentZoom = this.visualRenderer.zoomLevel;
+                    const newZoom = Math.max(this.visualRenderer.minZoom, currentZoom - 0.25);
+                    this.visualRenderer.setZoom(newZoom);
+                    this.updateStatus(`Zoomed out to ${(newZoom * 100).toFixed(0)}%`);
+                } else {
+                    this.updateStatus('No contract loaded yet.');
+                }
+            }
+
+            resetZoom() {
+                if (this.visualRenderer) {
+                    this.visualRenderer.resetZoom();
+                    this.updateStatus('Zoom reset to 100%');
+                } else {
+                    this.updateStatus('No contract loaded yet.');
                 }
             }
         }
