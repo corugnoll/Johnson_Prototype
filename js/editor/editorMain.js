@@ -7,6 +7,7 @@ class EditorMain {
     constructor() {
         this.canvas = null;
         this.nodeManager = null;
+        this.connectionManager = null;
         this.isDragging = false;
         this.dragNode = null;
         this.dragOffset = { x: 0, y: 0 };
@@ -54,6 +55,12 @@ class EditorMain {
         // Initialize node manager
         this.nodeManager = new NodeManager(this.canvas);
 
+        // Initialize connection manager
+        this.connectionManager = new ConnectionManager(this.nodeManager, this.canvas);
+
+        // Connect components
+        this.nodeManager.setConnectionManager(this.connectionManager);
+
         // Update initial displays
         this.updateToolbarState();
     }
@@ -96,11 +103,13 @@ class EditorMain {
         // Canvas controls
         const gridToggle = document.getElementById('gridToggleBtn');
         const snapToggle = document.getElementById('snapToggleBtn');
+        const buildConnections = document.getElementById('buildConnectionsBtn');
         const zoomFit = document.getElementById('zoomFitBtn');
         const resetView = document.getElementById('resetViewBtn');
 
         if (gridToggle) gridToggle.addEventListener('click', () => this.toggleGrid());
         if (snapToggle) snapToggle.addEventListener('click', () => this.toggleSnap());
+        if (buildConnections) buildConnections.addEventListener('click', () => this.buildConnections());
         if (zoomFit) zoomFit.addEventListener('click', () => this.zoomToFit());
         if (resetView) resetView.addEventListener('click', () => this.resetView());
 
@@ -261,16 +270,22 @@ class EditorMain {
     }
 
     /**
-     * Handle canvas mouse move for dragging
+     * Handle canvas mouse move for dragging and connection hover
      */
     handleCanvasMouseMove(event) {
-        if (!this.isDragging || !this.dragNode) return;
-
         const coords = this.canvas.getCanvasCoordinates(event);
-        const newX = coords.x - this.dragOffset.x;
-        const newY = coords.y - this.dragOffset.y;
 
-        this.nodeManager.moveNode(this.dragNode.id, newX, newY);
+        // Handle connection hover effects
+        if (this.connectionManager && !this.isDragging) {
+            this.connectionManager.handleMouseMove(coords.x, coords.y);
+        }
+
+        // Handle node dragging
+        if (this.isDragging && this.dragNode) {
+            const newX = coords.x - this.dragOffset.x;
+            const newY = coords.y - this.dragOffset.y;
+            this.nodeManager.moveNode(this.dragNode.id, newX, newY);
+        }
     }
 
     /**
@@ -460,10 +475,16 @@ class EditorMain {
         // Set the nodes
         this.nodeManager.setAllNodes(validNodes);
 
+        // Build connections automatically
+        if (this.connectionManager) {
+            this.connectionManager.buildAllConnections();
+        }
+
         // Zoom to fit
         this.zoomToFit();
 
-        this.showMessage(`Loaded ${validNodes.length} nodes`, 'success');
+        const connectionCount = this.connectionManager ? this.connectionManager.getAllConnections().length : 0;
+        this.showMessage(`Loaded ${validNodes.length} nodes and ${connectionCount} connections`, 'success');
     }
 
     /**
@@ -539,6 +560,27 @@ class EditorMain {
      */
     resetView() {
         this.canvas.resetView();
+    }
+
+    /**
+     * Build and display connections between nodes
+     */
+    buildConnections() {
+        if (!this.connectionManager) {
+            this.showMessage('Connection manager not initialized', 'error');
+            return;
+        }
+
+        // Validate and remove invalid connections first
+        this.connectionManager.removeInvalidConnections();
+
+        // Build all connections from node data
+        this.connectionManager.buildAllConnections();
+
+        const connectionCount = this.connectionManager.getAllConnections().length;
+        this.showMessage(`Built ${connectionCount} connections`, 'success');
+
+        console.log('Connection data:', this.connectionManager.exportConnectionData());
     }
 
     /**

@@ -9,6 +9,7 @@ class NodeManager {
         this.nodes = [];
         this.selectedNode = null;
         this.nextNodeId = 1;
+        this.connectionManager = null; // Will be set by editorMain
 
         // Node appearance settings
         this.minWidth = 80;
@@ -177,8 +178,20 @@ class NodeManager {
             if (yInput) yInput.value = coords.y;
         }
 
+        // Update connection paths if connections exist
+        if (this.connectionManager) {
+            this.connectionManager.updateConnectionPaths();
+        }
+
         this.canvas.render();
         return true;
+    }
+
+    /**
+     * Set the connection manager reference
+     */
+    setConnectionManager(connectionManager) {
+        this.connectionManager = connectionManager;
     }
 
     /**
@@ -430,7 +443,12 @@ class NodeManager {
         // Get visible bounds for optimization
         const bounds = this.canvas.getVisibleBounds();
 
-        // Draw only visible nodes
+        // Draw connections first (behind nodes)
+        if (this.connectionManager) {
+            this.connectionManager.renderAllConnections();
+        }
+
+        // Draw only visible nodes on top of connections
         this.nodes.forEach(node => {
             if (this.isNodeVisible(node, bounds)) {
                 this.drawNode(node, ctx);
