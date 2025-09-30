@@ -66,7 +66,8 @@ class NodeManager {
             connections: [],
             selected: false,
             width: this.minWidth,
-            height: this.minHeight
+            height: this.minHeight,
+            gateCondition: "" // NEW: Initialize gate condition field
         };
 
         // Calculate proper dimensions based on content
@@ -232,27 +233,41 @@ class NodeManager {
         const maxWidth = 200; // Maximum node width
         const lineHeight = 16;
         const separatorHeight = 4;
+        const minWidth = 80;
+        const minHeight = 60;
 
-        // Process description text with linebreaks
-        ctx.font = 'bold 14px Arial';
-        const descLines = this.processTextWithLinebreaks(node.description || '', maxWidth - padding * 2, ctx, 14);
-        const descWidth = Math.max(...descLines.map(line => ctx.measureText(line).width));
+        // Calculate available width for text
+        const availableWidth = maxWidth - padding * 2;
 
-        // Process effect description text with linebreaks
-        ctx.font = '12px Arial';
-        const effectLines = this.processTextWithLinebreaks(node.effectDesc || '', maxWidth - padding * 2, ctx, 12);
-        const effectWidth = Math.max(...effectLines.map(line => ctx.measureText(line).width));
+        // For Gate nodes, only process effectDesc
+        if (node.type === 'Gate') {
+            ctx.font = '12px Arial';
+            const effectLines = this.processTextWithLinebreaks(node.effectDesc || '', availableWidth, ctx, 12);
+            const effectWidth = Math.max(...effectLines.map(line => ctx.measureText(line).width));
 
-        // Calculate dimensions
-        const maxTextWidth = Math.max(descWidth, effectWidth);
-        const hasEffect = effectLines.length > 0 && effectLines[0].trim() !== '';
+            const totalTextHeight = effectLines.length * lineHeight;
 
-        const totalTextHeight = (descLines.length * lineHeight) +
-                               (hasEffect ? separatorHeight + (effectLines.length * lineHeight) : 0);
+            node.width = Math.max(minWidth, effectWidth + padding * 2);
+            node.height = Math.max(minHeight, totalTextHeight + padding * 2);
+        } else {
+            // Existing logic for regular nodes (description + effectDesc)
+            ctx.font = 'bold 14px Arial';
+            const descLines = this.processTextWithLinebreaks(node.description || '', availableWidth, ctx, 14);
+            const descWidth = Math.max(...descLines.map(line => ctx.measureText(line).width));
 
-        // Calculate final dimensions with padding
-        node.width = Math.max(this.minWidth, maxTextWidth + padding * 2);
-        node.height = Math.max(this.minHeight, totalTextHeight + padding * 2);
+            ctx.font = '12px Arial';
+            const effectLines = this.processTextWithLinebreaks(node.effectDesc || '', availableWidth, ctx, 12);
+            const effectWidth = Math.max(...effectLines.map(line => ctx.measureText(line).width));
+
+            const maxTextWidth = Math.max(descWidth, effectWidth);
+            const hasEffect = effectLines.length > 0 && effectLines[0].trim() !== '';
+
+            const totalTextHeight = (descLines.length * lineHeight) +
+                                   (hasEffect ? separatorHeight + (effectLines.length * lineHeight) : 0);
+
+            node.width = Math.max(minWidth, maxTextWidth + padding * 2);
+            node.height = Math.max(minHeight, totalTextHeight + padding * 2);
+        }
 
         return { width: node.width, height: node.height };
     }
@@ -293,6 +308,54 @@ class NodeManager {
         // Get node color
         const color = this.nodeColors[node.color] || this.nodeColors.Grey;
 
+        // Choose drawing method based on node type
+        if (node.type === 'Gate') {
+            this.drawGateNode(node, ctx, color);
+        } else {
+            this.drawRegularNode(node, ctx, color);
+        }
+
+        ctx.restore();
+    }
+
+    /**
+     * Draw gate node with rounded rectangle
+     */
+    drawGateNode(node, ctx, color) {
+        const radius = 8; // Border radius for rounded corners
+
+        // Draw rounded rectangle
+        ctx.fillStyle = color;
+        this.roundRect(ctx, node.x, node.y, node.width, node.height, radius, true, false);
+
+        // Draw border
+        ctx.strokeStyle = node.selected ? '#FFFFFF' : '#000000';
+        ctx.lineWidth = node.selected ? 3 : 1;
+        this.roundRect(ctx, node.x, node.y, node.width, node.height, radius, false, true);
+
+        // Draw node ID in top-right corner
+        ctx.font = '10px "Segoe UI", sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillStyle = this.getContrastColor(color, 0.7);
+        ctx.fillText(
+            node.id,
+            node.x + node.width - this.padding,
+            node.y + this.padding
+        );
+
+        // Render gate text (ONLY effectDesc, no description)
+        this.renderGateNodeText(node, {
+            x: node.x,
+            y: node.y,
+            width: node.width,
+            height: node.height
+        }, ctx);
+    }
+
+    /**
+     * Draw regular node (existing logic)
+     */
+    drawRegularNode(node, ctx, color) {
         // Draw node background
         ctx.fillStyle = color;
         ctx.fillRect(node.x, node.y, node.width, node.height);
@@ -302,7 +365,7 @@ class NodeManager {
         ctx.lineWidth = node.selected ? 3 : 1;
         ctx.strokeRect(node.x, node.y, node.width, node.height);
 
-        // Draw node ID in top-right corner
+        // Draw node ID
         ctx.font = '10px "Segoe UI", sans-serif';
         ctx.textAlign = 'right';
         ctx.fillStyle = this.getContrastColor(color, 0.7);
@@ -319,8 +382,53 @@ class NodeManager {
             width: node.width,
             height: node.height
         }, ctx);
+    }
 
-        ctx.restore();
+    /**
+     * Draw rounded rectangle helper
+     */
+    roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+
+        if (fill) ctx.fill();
+        if (stroke) ctx.stroke();
+    }
+
+    /**
+     * Render gate node text (only effectDesc, centered)
+     */
+    renderGateNodeText(node, pos, ctx) {
+        const padding = 6;
+        const availableWidth = pos.width - (padding * 2);
+        const fontSize = 12;
+        const lineHeight = 16;
+
+        // Process effect description text with linebreak support
+        const effectText = this.processTextWithLinebreaks(node.effectDesc || '', availableWidth, ctx, fontSize);
+
+        // Calculate vertical centering
+        const totalTextHeight = effectText.length * lineHeight;
+        const startY = pos.y + (pos.height - totalTextHeight) / 2;
+
+        // Render effect description text (only text for gates)
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = `${fontSize}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+
+        effectText.forEach((line, index) => {
+            ctx.fillText(line, pos.x + pos.width/2, startY + (index * lineHeight));
+        });
     }
 
     /**
@@ -561,6 +669,7 @@ class NodeManager {
             nodeEffect2: document.getElementById('nodeEffect2'),
             nodeType: document.getElementById('nodeType'),
             nodeColor: document.getElementById('nodeColor'),
+            nodeGateCondition: document.getElementById('nodeGateCondition'),
             nodeConnections: document.getElementById('nodeConnections'),
             nodeX: document.getElementById('nodeX'),
             nodeY: document.getElementById('nodeY')
@@ -568,15 +677,28 @@ class NodeManager {
 
         // Populate form fields
         if (elements.nodeId) elements.nodeId.value = node.id;
-        if (elements.nodeDescription) elements.nodeDescription.value = node.description;
-        if (elements.nodeEffectDesc) elements.nodeEffectDesc.value = node.effectDesc;
+        if (elements.nodeDescription) elements.nodeDescription.value = node.description || '';
+        if (elements.nodeEffectDesc) elements.nodeEffectDesc.value = node.effectDesc || '';
         if (elements.nodeEffect1) elements.nodeEffect1.value = node.effect1 || '';
         if (elements.nodeEffect2) elements.nodeEffect2.value = node.effect2 || '';
         if (elements.nodeType) elements.nodeType.value = node.type;
         if (elements.nodeColor) elements.nodeColor.value = node.color;
+        if (elements.nodeGateCondition) elements.nodeGateCondition.value = node.gateCondition || '';
         if (elements.nodeConnections) elements.nodeConnections.value = node.connections.join(',');
         if (elements.nodeX) elements.nodeX.value = node.x;
         if (elements.nodeY) elements.nodeY.value = node.y;
+
+        // Toggle field visibility based on node type
+        const isGate = node.type === 'Gate';
+        const descGroup = document.getElementById('descriptionGroup');
+        const effect1Group = document.getElementById('effect1Group');
+        const effect2Group = document.getElementById('effect2Group');
+        const gateConditionGroup = document.getElementById('gateConditionGroup');
+
+        if (descGroup) descGroup.style.display = isGate ? 'none' : 'block';
+        if (effect1Group) effect1Group.style.display = isGate ? 'none' : 'block';
+        if (effect2Group) effect2Group.style.display = isGate ? 'none' : 'block';
+        if (gateConditionGroup) gateConditionGroup.style.display = isGate ? 'block' : 'none';
 
         // Show the editor panel
         const nodeEditor = document.getElementById('nodeEditor');

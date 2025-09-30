@@ -62,6 +62,7 @@ class GameState {
                     effect2: node['Effect 2'] || node.effect2,
                     type: node['Type'] || node.type,
                     color: node['Color'] || node.color,
+                    gateCondition: node['GateCondition'] || node.gateCondition || '',
                     connections: this.parseConnections(node['Connections'] || node.connections),
                     selected: false,
                     available: this.shouldBeInitiallyAvailable(node)
@@ -219,6 +220,11 @@ class GameState {
      * @param {Object} node - Node to apply effects from
      */
     applyNodeEffects(node) {
+        // Skip gate nodes - they don't have effects
+        if (node.type === 'Gate') {
+            return;
+        }
+
         if (node.effect1) {
             this.applyEffect(node.effect1);
         }
@@ -329,23 +335,23 @@ class GameState {
                 return this.evaluateRunnerStatCondition(condition);
             }
 
-            // NodeColor: Check if specific color nodes are selected
+            // NodeColor: Check if specific color nodes are selected (excludes Gate nodes)
             if (condition.startsWith('NodeColor:')) {
                 const requiredColor = condition.split(':')[1];
                 const hasColor = this.selectedNodes.some(nodeId => {
                     const node = this.getNodeById(nodeId);
-                    return node && node.color === requiredColor;
+                    return node && node.color === requiredColor && node.type !== 'Gate';
                 });
                 return hasColor ? 1 : 0;
             }
 
-            // NodeColorCombo: Check if multiple specific colors are selected
+            // NodeColorCombo: Check if multiple specific colors are selected (excludes Gate nodes)
             if (condition.startsWith('NodeColorCombo:')) {
                 const requiredColors = condition.split(':')[1].split(',').map(c => c.trim());
                 const hasAllColors = requiredColors.every(color => {
                     return this.selectedNodes.some(nodeId => {
                         const node = this.getNodeById(nodeId);
-                        return node && node.color === color;
+                        return node && node.color === color && node.type !== 'Gate';
                     });
                 });
                 return hasAllColors ? 1 : 0;
@@ -547,11 +553,22 @@ class GameState {
 
     /**
      * Update which nodes are available for selection
+     * Nodes become available when:
+     * 1. They are start nodes (layer 0 or Type 'Start')
+     * 2. They are Synergy nodes (always available)
+     * 3. They are Gate nodes AND gate condition is met AND at least one connected predecessor is selected
+     * 4. They are normal nodes AND at least one connected predecessor node is selected
      */
     updateAvailableNodes() {
         if (!this.contractData) return;
 
         this.contractData.forEach(node => {
+            // Skip already selected nodes
+            if (node.selected) {
+                node.available = false;
+                return;
+            }
+
             // Start nodes (Layer 0 or Type 'Start') are always available
             if (this.isStartNode(node)) {
                 node.available = true;
@@ -561,6 +578,16 @@ class GameState {
             // Synergy nodes should also be always available
             if (node.type === 'Synergy') {
                 node.available = true;
+                return;
+            }
+
+            // Gate node availability logic
+            if (node.type === 'Gate') {
+                // Gate must have connection availability AND gate condition met
+                const hasConnectionAvailability = this.hasAvailableConnection(node);
+                const gateConditionMet = this.evaluateGateCondition(node);
+
+                node.available = hasConnectionAvailability && gateConditionMet;
                 return;
             }
 
@@ -578,6 +605,103 @@ class GameState {
             // Otherwise, check if any parent nodes are selected
             node.available = parentNodes.some(parentNode => parentNode.selected);
         });
+    }
+
+    /**
+     * Check if node has at least one selected predecessor
+     * @param {Object} node - Node to check
+     * @returns {boolean} True if has available connection
+     */
+    hasAvailableConnection(node) {
+        // Find nodes that connect TO this node
+        const predecessors = this.contractData.filter(otherNode => {
+            return otherNode.connections && otherNode.connections.includes(node.id);
+        });
+
+        // Node is available if any predecessor is selected
+        return predecessors.some(pred => pred.selected);
+    }
+
+    /**
+     * Evaluate gate condition for a gate node
+     * @param {Object} node - Gate node to evaluate
+     * @returns {boolean} True if condition is met
+     */
+    evaluateGateCondition(node) {
+        if (node.type !== 'Gate') {
+            return true; // Non-gate nodes are always available based on connections
+        }
+
+        if (!node.gateCondition || node.gateCondition.trim() === '') {
+            console.warn(`Gate node ${node.id} has no gate condition`);
+            return false;
+        }
+
+        try {
+            const [conditionPart, thresholdStr] = node.gateCondition.split(';');
+            const threshold = parseInt(thresholdStr);
+
+            if (isNaN(threshold)) {
+                console.error(`Invalid threshold in gate condition: ${node.gateCondition}`);
+                return false;
+            }
+
+            // RunnerType condition
+            if (conditionPart.startsWith('RunnerType:')) {
+                return this.evaluateRunnerTypeGateCondition(conditionPart, threshold);
+            }
+
+            // RunnerStat condition
+            if (conditionPart.startsWith('RunnerStat:')) {
+                return this.evaluateRunnerStatGateCondition(conditionPart, threshold);
+            }
+
+            console.warn(`Unknown gate condition type: ${conditionPart}`);
+            return false;
+
+        } catch (error) {
+            console.error(`Error evaluating gate condition for ${node.id}:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Evaluate RunnerType gate condition
+     * @param {string} conditionPart - Condition part (e.g., "RunnerType:hacker,muscle")
+     * @param {number} threshold - Required count
+     * @returns {boolean} True if condition is met
+     */
+    evaluateRunnerTypeGateCondition(conditionPart, threshold) {
+        const typesStr = conditionPart.substring('RunnerType:'.length);
+        const requiredTypes = typesStr.split(',').map(t => t.trim().toLowerCase());
+
+        // Count runners matching any of the required types
+        const matchingCount = this.runners.filter(runner => {
+            return requiredTypes.includes(runner.type.toLowerCase());
+        }).length;
+
+        return matchingCount >= threshold;
+    }
+
+    /**
+     * Evaluate RunnerStat gate condition
+     * @param {string} conditionPart - Condition part (e.g., "RunnerStat:muscle,stealth")
+     * @param {number} threshold - Required stat sum
+     * @returns {boolean} True if condition is met
+     */
+    evaluateRunnerStatGateCondition(conditionPart, threshold) {
+        const statsStr = conditionPart.substring('RunnerStat:'.length);
+        const requiredStats = statsStr.split(',').map(s => s.trim().toLowerCase());
+
+        // Sum the required stats across all runners
+        let totalStats = 0;
+        this.runners.forEach(runner => {
+            requiredStats.forEach(statName => {
+                totalStats += runner.stats[statName] || 0;
+            });
+        });
+
+        return totalStats >= threshold;
     }
 
     /**

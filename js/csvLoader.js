@@ -16,6 +16,7 @@ class VisualNode {
         this.effect2 = csvRow['Effect 2'];
         this.type = csvRow['Type'];
         this.color = csvRow['Color'];
+        this.gateCondition = csvRow['GateCondition'] || ''; // NEW: Gate condition support
 
         // Position properties (X,Y coordinates)
         this.x = parseFloat(csvRow['X']) || 0;
@@ -315,8 +316,9 @@ class CSVLoader {
                 }
             }
 
-            // Validate Description
-            if (!row['Description'] || row['Description'].trim() === '') {
+            // Validate Description (not required for Gate nodes)
+            const isGateNode = row['Type'] === 'Gate';
+            if (!isGateNode && (!row['Description'] || row['Description'].trim() === '')) {
                 validationErrors.push(`Row ${rowNumber}: Description is required`);
             }
 
@@ -395,6 +397,33 @@ class CSVLoader {
                 const connectionsValidation = this.validateConnectionsString(row['Connections'], rowNumber);
                 if (connectionsValidation.errors.length > 0) {
                     validationErrors.push(...connectionsValidation.errors);
+                }
+            }
+
+            // NEW: Validate Gate-specific rules
+            if (row['Type'] === 'Gate') {
+                // Gate nodes should have GateCondition
+                if (!row['GateCondition'] || row['GateCondition'].trim() === '') {
+                    validationErrors.push(`Row ${rowNumber}: Gate nodes require a GateCondition`);
+                } else {
+                    // Validate gate condition format
+                    const gateValidation = this.validateGateConditionFormat(row['GateCondition'], rowNumber);
+                    if (gateValidation.errors.length > 0) {
+                        validationErrors.push(...gateValidation.errors);
+                    }
+                }
+
+                // Gate nodes should not have Effect 1 or Effect 2 (warn if present)
+                if (row['Effect 1'] && row['Effect 1'].trim() !== '') {
+                    console.warn(`Row ${rowNumber}: Gate node has Effect 1 defined but it will be ignored`);
+                }
+                if (row['Effect 2'] && row['Effect 2'].trim() !== '') {
+                    console.warn(`Row ${rowNumber}: Gate node has Effect 2 defined but it will be ignored`);
+                }
+            } else {
+                // Non-gate nodes should not have GateCondition (warn if present)
+                if (row['GateCondition'] && row['GateCondition'].trim() !== '') {
+                    console.warn(`Row ${rowNumber}: Non-gate node has GateCondition defined but it will be ignored`);
                 }
             }
 
@@ -525,6 +554,7 @@ class CSVLoader {
                 effect2: row['Effect 2'] || '',
                 type: row['Type'] || 'Normal',
                 color: row['Color'] || 'Grey',
+                gateCondition: row['GateCondition'] || '',
                 connections: row['Connections'] ? row['Connections'].split(',').map(c => c.trim()).filter(c => c) : [],
                 selected: false,
                 available: false
@@ -726,5 +756,39 @@ class CSVLoader {
         if (score < 50) return 'Moderate';
         if (score < 100) return 'Complex';
         return 'Very Complex';
+    }
+
+    /**
+     * Validate gate condition string format
+     * @param {string} conditionString - Gate condition to validate
+     * @param {number} rowNumber - Row number for error reporting
+     * @returns {Object} Validation result with errors array
+     */
+    validateGateConditionFormat(conditionString, rowNumber) {
+        const errors = [];
+
+        try {
+            const parts = conditionString.split(';');
+            if (parts.length !== 2) {
+                errors.push(`Row ${rowNumber}: Gate condition must have 2 parts (Type:Params;Threshold)`);
+                return { errors };
+            }
+
+            const [conditionPart, thresholdStr] = parts;
+            const threshold = parseInt(thresholdStr);
+
+            if (isNaN(threshold) || threshold < 0) {
+                errors.push(`Row ${rowNumber}: Gate condition threshold must be non-negative integer`);
+            }
+
+            if (!conditionPart.startsWith('RunnerType:') && !conditionPart.startsWith('RunnerStat:')) {
+                errors.push(`Row ${rowNumber}: Gate condition must start with 'RunnerType:' or 'RunnerStat:'`);
+            }
+
+        } catch (error) {
+            errors.push(`Row ${rowNumber}: Error parsing gate condition: ${error.message}`);
+        }
+
+        return { errors };
     }
 }

@@ -83,7 +83,7 @@
                             <input type="text" id="nodeId" placeholder="e.g., NODE001">
                         </div>
 
-                        <div class="property-group">
+                        <div class="property-group" id="descriptionGroup">
                             <label for="nodeDescription">Description:</label>
                             <textarea id="nodeDescription" rows="3" placeholder="Node description text"></textarea>
                         </div>
@@ -93,14 +93,22 @@
                             <textarea id="nodeEffectDesc" rows="2" placeholder="Human-readable effect description"></textarea>
                         </div>
 
-                        <div class="property-group">
+                        <div class="property-group" id="effect1Group">
                             <label for="nodeEffect1">Effect 1:</label>
                             <input type="text" id="nodeEffect1" placeholder="Condition;Operator;Amount;Stat">
                         </div>
 
-                        <div class="property-group">
+                        <div class="property-group" id="effect2Group">
                             <label for="nodeEffect2">Effect 2:</label>
                             <input type="text" id="nodeEffect2" placeholder="Condition;Operator;Amount;Stat">
+                        </div>
+
+                        <div class="property-group" id="gateConditionGroup" style="display: none;">
+                            <label for="nodeGateCondition">Gate Condition:</label>
+                            <input type="text" id="nodeGateCondition" placeholder="RunnerType:hacker,muscle;3">
+                            <small style="display:block; color:#888; font-size:11px; margin-top:4px;">
+                                Format: RunnerType:{types};{amount} or RunnerStat:{stats};{amount}
+                            </small>
                         </div>
 
                         <div class="property-group">
@@ -109,6 +117,7 @@
                                 <option value="Normal">Normal</option>
                                 <option value="Synergy">Synergy</option>
                                 <option value="Special">Special</option>
+                                <option value="Gate">Gate</option>
                             </select>
                         </div>
 

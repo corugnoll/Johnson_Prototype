@@ -140,10 +140,38 @@ class EditorMain {
         if (updateBtn) updateBtn.addEventListener('click', () => this.updateSelectedNode());
         if (deleteBtn) deleteBtn.addEventListener('click', () => this.deleteSelectedNode());
 
+        // Type dropdown event listener for field visibility
+        const typeSelect = document.getElementById('nodeType');
+        if (typeSelect) {
+            typeSelect.addEventListener('change', (e) => {
+                const isGate = e.target.value === 'Gate';
+
+                // Toggle field groups
+                const descGroup = document.getElementById('descriptionGroup');
+                const effect1Group = document.getElementById('effect1Group');
+                const effect2Group = document.getElementById('effect2Group');
+                const gateConditionGroup = document.getElementById('gateConditionGroup');
+
+                if (descGroup) descGroup.style.display = isGate ? 'none' : 'block';
+                if (effect1Group) effect1Group.style.display = isGate ? 'none' : 'block';
+                if (effect2Group) effect2Group.style.display = isGate ? 'none' : 'block';
+                if (gateConditionGroup) gateConditionGroup.style.display = isGate ? 'block' : 'none';
+
+                // Clear fields when switching to/from Gate
+                if (isGate) {
+                    document.getElementById('nodeDescription').value = '';
+                    document.getElementById('nodeEffect1').value = '';
+                    document.getElementById('nodeEffect2').value = '';
+                } else {
+                    document.getElementById('nodeGateCondition').value = '';
+                }
+            });
+        }
+
         // Auto-update on input changes
         const inputs = [
             'nodeId', 'nodeDescription', 'nodeEffectDesc', 'nodeEffect1',
-            'nodeEffect2', 'nodeType', 'nodeColor', 'nodeConnections'
+            'nodeEffect2', 'nodeType', 'nodeColor', 'nodeGateCondition', 'nodeConnections'
         ];
 
         inputs.forEach(inputId => {
@@ -359,6 +387,7 @@ class EditorMain {
             effect2: document.getElementById('nodeEffect2')?.value,
             type: document.getElementById('nodeType')?.value,
             color: document.getElementById('nodeColor')?.value,
+            gateCondition: document.getElementById('nodeGateCondition')?.value,
             connections: document.getElementById('nodeConnections')?.value
         };
 

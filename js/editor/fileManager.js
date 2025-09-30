@@ -10,11 +10,11 @@ class FileManager {
 
         // File validation configuration
         this.requiredColumns = ['Node ID', 'Description', 'X', 'Y', 'Connections'];
-        this.optionalColumns = ['Effect Desc', 'Effect 1', 'Effect 2', 'Type', 'Color'];
+        this.optionalColumns = ['Effect Desc', 'Effect 1', 'Effect 2', 'Type', 'Color', 'Width', 'Height', 'GateCondition'];
         this.allValidColumns = [...this.requiredColumns, ...this.optionalColumns];
 
         // Data validation rules
-        this.validNodeTypes = ['Normal', 'Synergy', 'Start', 'End'];
+        this.validNodeTypes = ['Normal', 'Synergy', 'Start', 'End', 'Gate'];
         this.validColors = ['Red', 'Yellow', 'Green', 'Blue', 'Purple', 'Grey'];
 
         // Export format options
@@ -97,6 +97,7 @@ class FileManager {
                 'Y': this.formatCoordinate(node.y),
                 'Width': this.formatCoordinate(node.width),
                 'Height': this.formatCoordinate(node.height),
+                'GateCondition': node.gateCondition || '',
                 'Connections': connectionsStr
             };
         });
@@ -366,10 +367,26 @@ class FileManager {
             errors.push(`Invalid node color '${nodeColor}'. Valid colors: ${this.validColors.join(', ')}`);
         }
 
-        // Validate description length
+        // Validate description (can be empty for Gate nodes)
         const description = nodeData['Description'];
+        const isGate = nodeType === 'Gate';
+
+        // For non-Gate nodes, description length validation
         if (description && description.length > 200) {
             errors.push('Description too long (max 200 characters)');
+        }
+
+        // Gate nodes should have GateCondition
+        if (isGate) {
+            const gateCondition = nodeData['GateCondition'];
+            if (!gateCondition || gateCondition.trim() === '') {
+                errors.push('Gate nodes require a GateCondition');
+            } else {
+                const gateValidation = this.validateGateCondition(gateCondition, nodeId);
+                if (!gateValidation.valid) {
+                    errors.push(gateValidation.message);
+                }
+            }
         }
 
         return {
@@ -429,10 +446,11 @@ class FileManager {
                 color: row['Color'] || 'Grey',
                 x: parseFloat(row['X']) || 0,
                 y: parseFloat(row['Y']) || 0,
+                width: parseFloat(row['Width']) || 80,
+                height: parseFloat(row['Height']) || 60,
+                gateCondition: row['GateCondition'] || '',
                 connections: connections,
-                selected: false,
-                width: 80,  // Default width, will be recalculated
-                height: 60  // Default height, will be recalculated
+                selected: false
             };
         });
     }
@@ -463,12 +481,89 @@ class FileManager {
             if (typeof node.y !== 'number' || isNaN(node.y)) {
                 errors.push(`Node ${node.id || index + 1} has invalid Y coordinate`);
             }
+
+            // Gate-specific validation
+            if (node.type === 'Gate') {
+                if (!node.gateCondition || node.gateCondition.trim() === '') {
+                    errors.push(`Node ${node.id}: Gate nodes require a GateCondition`);
+                } else {
+                    const gateValidation = this.validateGateCondition(node.gateCondition, node.id);
+                    if (!gateValidation.valid) {
+                        errors.push(`Node ${node.id}: ${gateValidation.message}`);
+                    }
+                }
+            }
         });
 
         return {
             isValid: errors.length === 0,
             errors: errors
         };
+    }
+
+    /**
+     * Validate gate condition string format
+     * @param {string} conditionString - Gate condition to validate
+     * @param {string} nodeId - Node ID for error reporting
+     * @returns {Object} Validation result with valid flag and message
+     */
+    validateGateCondition(conditionString, nodeId) {
+        if (!conditionString || conditionString.trim() === '') {
+            return { valid: false, message: 'Gate condition cannot be empty' };
+        }
+
+        try {
+            const parts = conditionString.split(';');
+            if (parts.length !== 2) {
+                return { valid: false, message: 'Gate condition must have exactly 2 parts separated by semicolon (Type:Params;Threshold)' };
+            }
+
+            const [conditionPart, thresholdStr] = parts;
+
+            // Validate threshold
+            const threshold = parseInt(thresholdStr);
+            if (isNaN(threshold) || threshold < 0) {
+                return { valid: false, message: 'Gate condition threshold must be a non-negative integer' };
+            }
+
+            // Validate condition type
+            if (conditionPart.startsWith('RunnerType:')) {
+                const types = conditionPart.substring('RunnerType:'.length).split(',').map(t => t.trim());
+                const validRunnerTypes = ['Face', 'Muscle', 'Hacker', 'Ninja', 'face', 'muscle', 'hacker', 'ninja'];
+
+                for (const type of types) {
+                    if (!validRunnerTypes.includes(type)) {
+                        return { valid: false, message: `Invalid runner type '${type}' in gate condition. Valid types: Face, Muscle, Hacker, Ninja (case-insensitive)` };
+                    }
+                }
+
+                if (types.length === 0) {
+                    return { valid: false, message: 'RunnerType gate condition requires at least one runner type' };
+                }
+            }
+            else if (conditionPart.startsWith('RunnerStat:')) {
+                const stats = conditionPart.substring('RunnerStat:'.length).split(',').map(s => s.trim());
+                const validStats = ['face', 'muscle', 'hacker', 'ninja'];
+
+                for (const stat of stats) {
+                    if (!validStats.includes(stat.toLowerCase())) {
+                        return { valid: false, message: `Invalid stat '${stat}' in gate condition. Valid stats: face, muscle, hacker, ninja (case-insensitive)` };
+                    }
+                }
+
+                if (stats.length === 0) {
+                    return { valid: false, message: 'RunnerStat gate condition requires at least one stat' };
+                }
+            }
+            else {
+                return { valid: false, message: 'Gate condition must start with RunnerType: or RunnerStat:' };
+            }
+
+        } catch (error) {
+            return { valid: false, message: `Error parsing gate condition: ${error.message}` };
+        }
+
+        return { valid: true, message: 'Valid gate condition' };
     }
 
     /**

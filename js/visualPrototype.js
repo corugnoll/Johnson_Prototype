@@ -208,6 +208,21 @@ class VisualPrototypeRenderer {
         // Calculate available width for text (accounting for padding)
         const availableWidth = maxWidth - padding * 2;
 
+        // NEW: For gate nodes, only calculate based on effectDescription
+        if (node.type === 'Gate') {
+            ctx.font = '12px Arial';
+            const effectLines = this.processTextWithLinebreaks(node.effectDescription || '', availableWidth, ctx, 12);
+            const effectWidth = Math.max(...effectLines.map(line => ctx.measureText(line).width));
+
+            const totalTextHeight = effectLines.length * lineHeight;
+
+            const finalWidth = Math.max(minWidth, effectWidth + padding * 2);
+            const finalHeight = Math.max(minHeight, totalTextHeight + padding * 2);
+
+            return { width: finalWidth, height: finalHeight };
+        }
+
+        // Existing logic for regular nodes
         // Process description text with linebreaks (set font FIRST)
         ctx.font = 'bold 14px Arial';
         const descLines = this.processTextWithLinebreaks(node.description || '', availableWidth, ctx, 14);
@@ -397,22 +412,121 @@ class VisualPrototypeRenderer {
     renderRegularNode(node, pos) {
         const color = this.nodeColors[node.color] || '#CCCCCC';
 
-        // Draw node background
-        this.ctx.fillStyle = node.state === 'unavailable' ? this.desaturateColor(color) : color;
-        this.ctx.fillRect(pos.x, pos.y, pos.width, pos.height);
+        // Check if this is a gate node
+        if (node.type === 'Gate') {
+            this.renderGateNode(node, pos, color);
+        } else {
+            // Draw node background
+            this.ctx.fillStyle = node.state === 'unavailable' ? this.desaturateColor(color) : color;
+            this.ctx.fillRect(pos.x, pos.y, pos.width, pos.height);
 
-        // Draw node border with proper selection styling
+            // Draw node border with proper selection styling
+            if (node.state === 'selected') {
+                this.ctx.strokeStyle = '#FFFFFF';  // White border for selected
+                this.ctx.lineWidth = 3;
+            } else {
+                this.ctx.strokeStyle = '#000000';  // Black border for normal
+                this.ctx.lineWidth = 1;
+            }
+            this.ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
+
+            // Render enhanced node text with proper layout
+            this.renderEnhancedNodeText(node, pos);
+        }
+    }
+
+    /**
+     * Render a gate node with rounded rectangle shape
+     * @param {VisualNode} node - Gate node to render
+     * @param {Object} pos - Node position and dimensions
+     * @param {string} color - Node color
+     */
+    renderGateNode(node, pos, color) {
+        const radius = 8; // Border radius for rounded corners
+
+        // Draw rounded rectangle background
+        this.ctx.fillStyle = node.state === 'unavailable' ? this.desaturateColor(color) : color;
+        this.roundRect(this.ctx, pos.x, pos.y, pos.width, pos.height, radius, true, false);
+
+        // Draw rounded rectangle border
         if (node.state === 'selected') {
-            this.ctx.strokeStyle = '#FFFFFF';  // White border for selected
+            this.ctx.strokeStyle = '#FFFFFF';
             this.ctx.lineWidth = 3;
         } else {
-            this.ctx.strokeStyle = '#000000';  // Black border for normal
+            this.ctx.strokeStyle = '#000000';
             this.ctx.lineWidth = 1;
         }
-        this.ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
+        this.roundRect(this.ctx, pos.x, pos.y, pos.width, pos.height, radius, false, true);
 
-        // Render enhanced node text with proper layout
-        this.renderEnhancedNodeText(node, pos);
+        // Render gate text (only effectDescription, centered)
+        this.renderGateNodeText(node, pos);
+    }
+
+    /**
+     * Draw rounded rectangle helper
+     * @param {CanvasRenderingContext2D} ctx - Canvas context
+     * @param {number} x - X coordinate
+     * @param {number} y - Y coordinate
+     * @param {number} width - Width
+     * @param {number} height - Height
+     * @param {number} radius - Corner radius
+     * @param {boolean} fill - Whether to fill
+     * @param {boolean} stroke - Whether to stroke
+     */
+    roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+
+        if (fill) ctx.fill();
+        if (stroke) ctx.stroke();
+    }
+
+    /**
+     * Render gate node text (only effectDescription, centered)
+     * @param {VisualNode} node - Gate node
+     * @param {Object} pos - Position and dimensions
+     */
+    renderGateNodeText(node, pos) {
+        const padding = 6;
+        const fontSize = 12;
+        const lineHeight = 16;
+        const availableWidth = pos.width - (padding * 2);
+
+        // Create temporary canvas for text processing
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+
+        // Process effect description text
+        tempCtx.font = `${fontSize}px Arial`;
+        const effectText = this.processTextWithLinebreaks(
+            node.effectDescription || '',
+            availableWidth,
+            tempCtx,
+            fontSize
+        );
+
+        // Calculate vertical centering
+        const totalTextHeight = effectText.length * lineHeight;
+        const startY = pos.y + (pos.height - totalTextHeight) / 2;
+
+        // Render text
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.font = `${fontSize}px Arial`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'top';
+
+        effectText.forEach((line, index) => {
+            this.ctx.fillText(line, pos.x + pos.width/2, startY + (index * lineHeight));
+        });
     }
 
     /**
