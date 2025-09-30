@@ -16,8 +16,14 @@ class VisualNode {
         this.effect2 = csvRow['Effect 2'];
         this.type = csvRow['Type'];
         this.color = csvRow['Color'];
+
+        // Position properties (X,Y coordinates)
+        this.x = parseFloat(csvRow['X']) || 0;
+        this.y = parseFloat(csvRow['Y']) || 0;
+
+        // Legacy layer/slot support for backward compatibility (will be ignored in new format)
         this.layer = parseInt(csvRow['Layer']) || 0;
-        this.slot = csvRow['Slot'];
+        this.slot = csvRow['Slot'] || '';
 
         // Visual properties
         this.state = 'available';         // available, selected, unavailable
@@ -30,11 +36,12 @@ class VisualContractData {
     constructor(csvData) {
         this.nodes = new Map();           // NodeID → VisualNode
         this.connections = new Map();     // NodeID → Set<NodeID>
-        this.layers = new Map();          // Layer → VisualNode[]
+        this.layers = new Map();          // Layer → VisualNode[] (legacy support)
         this.metadata = {
             nodeCount: 0,
             connectionCount: 0,
-            loadTime: Date.now()
+            loadTime: Date.now(),
+            format: 'unknown'             // 'xy' for X,Y format, 'legacy' for Layer/Slot
         };
 
         if (csvData) {
@@ -43,12 +50,20 @@ class VisualContractData {
     }
 
     processCSVData(csvData) {
+        // Detect format: check if X,Y columns exist
+        const hasXY = csvData.length > 0 &&
+                      csvData[0].hasOwnProperty('X') &&
+                      csvData[0].hasOwnProperty('Y');
+
+        this.metadata.format = hasXY ? 'xy' : 'legacy';
+        console.log(`Contract format detected: ${this.metadata.format}`);
+
         // First pass: create all nodes
         csvData.forEach(row => {
             const node = new VisualNode(row);
             this.nodes.set(node.id, node);
 
-            // Organize by layers
+            // Legacy layer organization (for backward compatibility)
             if (!this.layers.has(node.layer)) {
                 this.layers.set(node.layer, []);
             }
@@ -85,7 +100,9 @@ class VisualContractData {
         if (!connectionsString || connectionsString.trim() === '') {
             return [];
         }
-        return connectionsString.split(';').map(id => id.trim()).filter(id => id !== '');
+        // Support both comma-separated (editor format) and semicolon-separated (legacy format)
+        const separator = connectionsString.includes(',') ? ',' : ';';
+        return connectionsString.split(separator).map(id => id.trim()).filter(id => id !== '');
     }
 
     // Utility methods for visualization
@@ -110,18 +127,30 @@ class VisualContractData {
 
 class CSVLoader {
     constructor() {
+        // New format requires X,Y coordinates instead of Layer,Slot
         this.requiredColumns = [
             'Node ID',
             'Description',
+            'X',
+            'Y',
+            'Connections'
+        ];
+
+        // Optional columns for enhanced functionality
+        this.optionalColumns = [
             'Effect Desc',
             'Effect 1',
             'Effect 2',
             'Type',
-            'Color',
-            'Layer',
-            'Slot',
-            'Connections'
+            'Color'
         ];
+
+        // Legacy columns for backward compatibility
+        this.legacyColumns = [
+            'Layer',
+            'Slot'
+        ];
+
         this.maxFileSize = 5 * 1024 * 1024; // 5MB limit
     }
 
@@ -230,20 +259,42 @@ class CSVLoader {
         const firstRow = data[0];
         const availableColumns = Object.keys(firstRow);
 
-        // Check for required columns
-        const missingColumns = this.requiredColumns.filter(col =>
-            !availableColumns.includes(col)
-        );
+        // Detect format and validate accordingly
+        const hasXY = availableColumns.includes('X') && availableColumns.includes('Y');
+        const hasLayerSlot = availableColumns.includes('Layer') && availableColumns.includes('Slot');
 
-        if (missingColumns.length > 0) {
-            throw new Error(`Missing required columns: ${missingColumns.join(', ')}`);
+        if (!hasXY && !hasLayerSlot) {
+            throw new Error('Invalid format: Must have either X,Y coordinates OR Layer,Slot positioning');
+        }
+
+        if (hasXY) {
+            // Validate new X,Y format
+            const missingColumns = this.requiredColumns.filter(col =>
+                !availableColumns.includes(col)
+            );
+
+            if (missingColumns.length > 0) {
+                throw new Error(`Missing required columns for X,Y format: ${missingColumns.join(', ')}`);
+            }
+            console.log('Validating X,Y positioning format');
+        } else {
+            // Legacy format validation (Layer/Slot)
+            const legacyRequired = ['Node ID', 'Description', 'Layer', 'Slot', 'Connections'];
+            const missingColumns = legacyRequired.filter(col =>
+                !availableColumns.includes(col)
+            );
+
+            if (missingColumns.length > 0) {
+                throw new Error(`Missing required columns for Layer/Slot format: ${missingColumns.join(', ')}`);
+            }
+            console.warn('Using legacy Layer/Slot format. Consider upgrading to X,Y positioning for better editor support.');
         }
 
         // Enhanced validation with better error messages and performance
         const validationErrors = [];
         const nodeIds = new Set();
         const validColors = ['Red', 'Yellow', 'Green', 'Blue', 'Purple', 'Grey'];
-        const validTypes = ['Effect', 'Choice', 'Start', 'End', 'Gate', 'Synergy'];
+        const validTypes = ['Normal', 'Effect', 'Choice', 'Start', 'End', 'Gate', 'Synergy', 'Special'];
 
         data.forEach((row, index) => {
             const rowNumber = index + 1;
@@ -265,30 +316,64 @@ class CSVLoader {
                 validationErrors.push(`Row ${rowNumber}: Description is required`);
             }
 
-            // Validate Color
-            if (!row['Color'] || row['Color'].trim() === '') {
-                validationErrors.push(`Row ${rowNumber}: Color is required`);
-            } else if (!validColors.includes(row['Color'])) {
-                validationErrors.push(`Row ${rowNumber}: Invalid color '${row['Color']}'. Must be one of: ${validColors.join(', ')}`);
-            }
+            // Validate positioning format
+            if (hasXY) {
+                // Validate X coordinate
+                if (!row['X'] && row['X'] !== '0') {
+                    validationErrors.push(`Row ${rowNumber}: X coordinate is required`);
+                } else if (isNaN(parseFloat(row['X']))) {
+                    validationErrors.push(`Row ${rowNumber}: X coordinate must be a number, got '${row['X']}'`);
+                } else {
+                    const x = parseFloat(row['X']);
+                    if (x < -10000 || x > 10000) {
+                        validationErrors.push(`Row ${rowNumber}: X coordinate out of range (-10000 to 10000), got ${x}`);
+                    }
+                }
 
-            // Validate Layer (should be numeric)
-            if (!row['Layer'] || row['Layer'].trim() === '') {
-                validationErrors.push(`Row ${rowNumber}: Layer is required`);
-            } else if (isNaN(parseInt(row['Layer']))) {
-                validationErrors.push(`Row ${rowNumber}: Layer must be a number, got '${row['Layer']}'`);
+                // Validate Y coordinate
+                if (!row['Y'] && row['Y'] !== '0') {
+                    validationErrors.push(`Row ${rowNumber}: Y coordinate is required`);
+                } else if (isNaN(parseFloat(row['Y']))) {
+                    validationErrors.push(`Row ${rowNumber}: Y coordinate must be a number, got '${row['Y']}'`);
+                } else {
+                    const y = parseFloat(row['Y']);
+                    if (y < -10000 || y > 10000) {
+                        validationErrors.push(`Row ${rowNumber}: Y coordinate out of range (-10000 to 10000), got ${y}`);
+                    }
+                }
             } else {
-                const layer = parseInt(row['Layer']);
-                if (layer < 0) {
-                    validationErrors.push(`Row ${rowNumber}: Layer must be non-negative, got ${layer}`);
+                // Validate Layer (legacy format)
+                if (!row['Layer'] || row['Layer'].trim() === '') {
+                    validationErrors.push(`Row ${rowNumber}: Layer is required (legacy format)`);
+                } else if (isNaN(parseInt(row['Layer']))) {
+                    validationErrors.push(`Row ${rowNumber}: Layer must be a number, got '${row['Layer']}'`);
+                } else {
+                    const layer = parseInt(row['Layer']);
+                    if (layer < 0) {
+                        validationErrors.push(`Row ${rowNumber}: Layer must be non-negative, got ${layer}`);
+                    }
+                }
+
+                // Validate Slot (legacy format)
+                if (row['Slot'] && row['Slot'].trim() !== '') {
+                    const validSlotPattern = /^[A-Z]{1,2}[0-9]*$/;
+                    if (!validSlotPattern.test(row['Slot'])) {
+                        validationErrors.push(`Row ${rowNumber}: Invalid slot format '${row['Slot']}'. Expected pattern like 'CE', 'U1', 'D2'`);
+                    }
                 }
             }
 
-            // Validate Type
-            if (!row['Type'] || row['Type'].trim() === '') {
-                validationErrors.push(`Row ${rowNumber}: Type is required`);
-            } else if (!validTypes.includes(row['Type'])) {
-                validationErrors.push(`Row ${rowNumber}: Invalid type '${row['Type']}'. Must be one of: ${validTypes.join(', ')}`);
+            // Validate optional fields
+            if (row['Color'] && row['Color'].trim() !== '') {
+                if (!validColors.includes(row['Color'])) {
+                    validationErrors.push(`Row ${rowNumber}: Invalid color '${row['Color']}'. Must be one of: ${validColors.join(', ')}`);
+                }
+            }
+
+            if (row['Type'] && row['Type'].trim() !== '') {
+                if (!validTypes.includes(row['Type'])) {
+                    validationErrors.push(`Row ${rowNumber}: Invalid type '${row['Type']}'. Must be one of: ${validTypes.join(', ')}`);
+                }
             }
 
             // Validate Effect strings if present
@@ -309,13 +394,7 @@ class CSVLoader {
                 }
             }
 
-            // Validate Slot format if present
-            if (row['Slot'] && row['Slot'].trim() !== '') {
-                const validSlotPattern = /^[A-Z]{1,2}[0-9]*$/;
-                if (!validSlotPattern.test(row['Slot'])) {
-                    validationErrors.push(`Row ${rowNumber}: Invalid slot format '${row['Slot']}'. Expected pattern like 'CE', 'U1', 'D2'`);
-                }
-            }
+            // Slot validation moved to positioning format section above
         });
 
         // Stop validation if there are too many errors (performance consideration)
@@ -429,20 +508,42 @@ class CSVLoader {
      * @returns {Array} Processed game data
      */
     processDataForGame(rawData) {
-        return rawData.map(row => ({
-            id: row['Node ID'],
-            description: row['Description'],
-            effectDescription: row['Effect Desc'],
-            effect1: row['Effect 1'],
-            effect2: row['Effect 2'],
-            type: row['Type'],
-            color: row['Color'],
-            layer: parseInt(row['Layer']) || 0,
-            slot: row['Slot'],
-            connections: row['Connections'] ? row['Connections'].split(';').filter(c => c.trim()) : [],
-            selected: false,
-            available: false
-        }));
+        const hasXY = rawData.length > 0 &&
+                      rawData[0].hasOwnProperty('X') &&
+                      rawData[0].hasOwnProperty('Y');
+
+        return rawData.map(row => {
+            const baseData = {
+                id: row['Node ID'],
+                description: row['Description'],
+                effectDescription: row['Effect Desc'] || '',
+                effect1: row['Effect 1'] || '',
+                effect2: row['Effect 2'] || '',
+                type: row['Type'] || 'Normal',
+                color: row['Color'] || 'Grey',
+                connections: row['Connections'] ? row['Connections'].split(',').map(c => c.trim()).filter(c => c) : [],
+                selected: false,
+                available: false
+            };
+
+            if (hasXY) {
+                // New X,Y format
+                baseData.x = parseFloat(row['X']) || 0;
+                baseData.y = parseFloat(row['Y']) || 0;
+                // Keep legacy fields for backward compatibility
+                baseData.layer = parseInt(row['Layer']) || 0;
+                baseData.slot = row['Slot'] || '';
+            } else {
+                // Legacy format
+                baseData.layer = parseInt(row['Layer']) || 0;
+                baseData.slot = row['Slot'] || '';
+                // Default X,Y coordinates will be calculated by layout algorithm
+                baseData.x = 0;
+                baseData.y = 0;
+            }
+
+            return baseData;
+        });
     }
 
     /**
@@ -522,12 +623,12 @@ class CSVLoader {
                 errors.push(`Row ${rowNumber} ${columnName}: Division by zero is not allowed`);
             }
 
-            // Validate stat
+            // Validate stat (case-insensitive)
             const validStats = ['damage', 'risk', 'money', 'grit', 'veil'];
             if (!stat || stat.trim() === '') {
                 errors.push(`Row ${rowNumber} ${columnName}: Stat part cannot be empty`);
             } else if (!validStats.includes(stat.toLowerCase())) {
-                errors.push(`Row ${rowNumber} ${columnName}: Invalid stat '${stat}'. Must be one of: ${validStats.join(', ')}`);
+                errors.push(`Row ${rowNumber} ${columnName}: Invalid stat '${stat}'. Must be one of: ${validStats.join(', ')} (case-insensitive)`);
             }
 
         } catch (error) {
@@ -547,7 +648,9 @@ class CSVLoader {
         const errors = [];
 
         try {
-            const connections = connectionsString.split(';').map(c => c.trim()).filter(c => c !== '');
+            // Support both comma-separated (editor format) and semicolon-separated (legacy format)
+            const separator = connectionsString.includes(',') ? ',' : ';';
+            const connections = connectionsString.split(separator).map(c => c.trim()).filter(c => c !== '');
 
             connections.forEach(connection => {
                 if (!connection || connection.trim() === '') {
