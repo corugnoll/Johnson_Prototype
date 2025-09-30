@@ -95,22 +95,21 @@ class VisualPrototypeRenderer {
         const container = this.canvas.parentElement;
         const containerRect = container.getBoundingClientRect();
 
-        // Set canvas size to use full container space with minimal padding
+        // Calculate desired canvas size (use full container space with minimal padding)
         const padding = 10;
-        this.canvas.width = Math.max(500, containerRect.width - padding);
-        this.canvas.height = Math.max(400, containerRect.height - padding);
+        const desiredWidth = Math.max(500, containerRect.width - padding);
+        const desiredHeight = Math.max(400, containerRect.height - padding);
 
         // Apply device pixel ratio for crisp rendering
         const dpr = window.devicePixelRatio || 1;
-        const rect = this.canvas.getBoundingClientRect();
 
-        // Scale the canvas back down using CSS
-        this.canvas.style.width = rect.width + 'px';
-        this.canvas.style.height = rect.height + 'px';
+        // Set CSS size (display size) - this is what the user sees
+        this.canvas.style.width = desiredWidth + 'px';
+        this.canvas.style.height = desiredHeight + 'px';
 
-        // Scale the drawing buffer up to account for device pixel ratio
-        this.canvas.width = rect.width * dpr;
-        this.canvas.height = rect.height * dpr;
+        // Set actual canvas resolution (drawing buffer size) accounting for DPR
+        this.canvas.width = desiredWidth * dpr;
+        this.canvas.height = desiredHeight * dpr;
 
         // Scale the drawing context so everything draws at the correct size
         this.ctx.scale(dpr, dpr);
@@ -287,11 +286,15 @@ class VisualPrototypeRenderer {
      */
     updateVisibleBounds() {
         const padding = 100; // Extra padding for smooth scrolling
+        // Use CSS dimensions (display size), not canvas buffer dimensions
+        const canvasWidth = parseFloat(this.canvas.style.width) || this.canvas.clientWidth;
+        const canvasHeight = parseFloat(this.canvas.style.height) || this.canvas.clientHeight;
+
         this.visibleBounds = {
             left: (-this.panOffset.x / this.zoomLevel) - padding,
             top: (-this.panOffset.y / this.zoomLevel) - padding,
-            right: (-this.panOffset.x + this.canvas.width) / this.zoomLevel + padding,
-            bottom: (-this.panOffset.y + this.canvas.height) / this.zoomLevel + padding
+            right: (-this.panOffset.x + canvasWidth) / this.zoomLevel + padding,
+            bottom: (-this.panOffset.y + canvasHeight) / this.zoomLevel + padding
         };
     }
 
@@ -1362,8 +1365,9 @@ class VisualPrototypeRenderer {
     constrainPanOffset() {
         if (!this.contractData) return;
 
-        const canvasWidth = this.canvas.width;
-        const canvasHeight = this.canvas.height;
+        // Use CSS dimensions (display size), not canvas buffer dimensions
+        const canvasWidth = parseFloat(this.canvas.style.width) || this.canvas.clientWidth;
+        const canvasHeight = parseFloat(this.canvas.style.height) || this.canvas.clientHeight;
 
         // Calculate tree bounds in screen space (with zoom applied)
         const screenTreeMinX = this.treeBounds.minX * this.zoomLevel;
