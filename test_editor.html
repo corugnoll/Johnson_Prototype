@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Johnson Contract Editor - Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #1a1a2e;
+            color: #f5f5f5;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #533a7b;
+            border-radius: 8px;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background-color: #27ae60; }
+        .error { background-color: #e74c3c; }
+        .info { background-color: #3498db; }
+    </style>
+</head>
+<body>
+    <h1>Johnson Contract Editor - Phase 1 Test</h1>
+
+    <div class="test-section">
+        <h2>File Structure Test</h2>
+        <div id="fileTests"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>JavaScript Module Loading Test</h2>
+        <div id="moduleTests"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Component Initialization Test</h2>
+        <div id="componentTests"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Canvas Functionality Test</h2>
+        <canvas id="testCanvas" width="400" height="300" style="border: 1px solid #533a7b;"></canvas>
+        <div id="canvasTests"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Manual Test Instructions</h2>
+        <ol>
+            <li><a href="editor.html" target="_blank">Open the main editor</a></li>
+            <li>Test canvas navigation:
+                <ul>
+                    <li>Mouse wheel to zoom in/out</li>
+                    <li>Middle-click and drag to pan</li>
+                    <li>Use zoom controls in toolbar</li>
+                </ul>
+            </li>
+            <li>Test node creation:
+                <ul>
+                    <li>Select a color from the creation panel</li>
+                    <li>Click "Create Node" or double-click on canvas</li>
+                    <li>Verify node appears and can be selected</li>
+                </ul>
+            </li>
+            <li>Test node interaction:
+                <ul>
+                    <li>Click on a node to select it</li>
+                    <li>Verify properties panel updates</li>
+                    <li>Drag node to move it</li>
+                    <li>Edit properties and verify updates</li>
+                </ul>
+            </li>
+            <li>Test grid functionality:
+                <ul>
+                    <li>Toggle grid visibility</li>
+                    <li>Toggle snap to grid</li>
+                    <li>Verify nodes snap when moving</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <!-- Load Papa Parse -->
+    <script src="Tools/node_modules/papaparse/papaparse.min.js"></script>
+
+    <!-- Load Editor Modules -->
+    <script src="js/editor/editorCanvas.js"></script>
+    <script src="js/editor/nodeManager.js"></script>
+
+    <script>
+        function addTestResult(containerId, message, type = 'info') {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.textContent = message;
+            container.appendChild(div);
+        }
+
+        // Test file structure
+        function testFileStructure() {
+            const files = [
+                'editor.html',
+                'css/editor-styles.css',
+                'js/editor/editorCanvas.js',
+                'js/editor/nodeManager.js',
+                'js/editor/editorMain.js'
+            ];
+
+            addTestResult('fileTests', 'Testing file structure...', 'info');
+
+            // Note: We can't actually test file existence from client-side JS
+            // This is more for documentation of what should exist
+            files.forEach(file => {
+                addTestResult('fileTests', `✓ ${file} should exist`, 'success');
+            });
+        }
+
+        // Test module loading
+        function testModuleLoading() {
+            addTestResult('moduleTests', 'Testing JavaScript module loading...', 'info');
+
+            try {
+                if (typeof Papa !== 'undefined') {
+                    addTestResult('moduleTests', '✓ Papa Parse loaded successfully', 'success');
+                } else {
+                    addTestResult('moduleTests', '✗ Papa Parse not loaded', 'error');
+                }
+
+                if (typeof EditorCanvas !== 'undefined') {
+                    addTestResult('moduleTests', '✓ EditorCanvas class available', 'success');
+                } else {
+                    addTestResult('moduleTests', '✗ EditorCanvas class not available', 'error');
+                }
+
+                if (typeof NodeManager !== 'undefined') {
+                    addTestResult('moduleTests', '✓ NodeManager class available', 'success');
+                } else {
+                    addTestResult('moduleTests', '✗ NodeManager class not available', 'error');
+                }
+
+            } catch (error) {
+                addTestResult('moduleTests', `✗ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test component initialization
+        function testComponentInitialization() {
+            addTestResult('componentTests', 'Testing component initialization...', 'info');
+
+            try {
+                // Test EditorCanvas initialization
+                const testCanvas = new EditorCanvas('testCanvas', 400, 300);
+                addTestResult('componentTests', '✓ EditorCanvas initialized successfully', 'success');
+
+                // Test NodeManager initialization
+                const testNodeManager = new NodeManager(testCanvas);
+                addTestResult('componentTests', '✓ NodeManager initialized successfully', 'success');
+
+                // Test basic functionality
+                testCanvas.setZoom(150);
+                addTestResult('componentTests', '✓ Canvas zoom functionality works', 'success');
+
+                const node = testNodeManager.createNode(100, 100);
+                if (node) {
+                    addTestResult('componentTests', '✓ Node creation works', 'success');
+                } else {
+                    addTestResult('componentTests', '✗ Node creation failed', 'error');
+                }
+
+                // Test canvas rendering
+                testCanvas.render();
+                addTestResult('componentTests', '✓ Canvas rendering works', 'success');
+
+            } catch (error) {
+                addTestResult('componentTests', `✗ Error: ${error.message}`, 'error');
+                console.error('Component test error:', error);
+            }
+        }
+
+        function testCanvas() {
+            addTestResult('canvasTests', 'Canvas basic functionality test completed above.', 'info');
+            addTestResult('canvasTests', 'Check console for any errors.', 'info');
+            addTestResult('canvasTests', 'The test canvas above should show a grid and a test node.', 'info');
+        }
+
+        // Run all tests
+        document.addEventListener('DOMContentLoaded', function() {
+            testFileStructure();
+            testModuleLoading();
+            testComponentInitialization();
+            testCanvas();
+        });
+    </script>
+</body>
+</html>

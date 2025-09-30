@@ -5,7 +5,10 @@
       "Bash(cat:*)",
       "Bash(sed:*)",
       "Bash(git push:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(start editor.html)",
+      "Bash(start test_editor.html)",
+      "Bash(git log:*)"
     ]
   },
   "outputStyle": "Explanatory"

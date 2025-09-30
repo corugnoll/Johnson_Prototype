@@ -1,0 +1,6 @@
+Node ID,Description,Effect Desc,Effect 1,Effect 2,Type,Color,X,Y,Connections
+NODE001,Starting Node,Initial entry point for the contract,None;+;0;Money,None;+;0;Risk,Normal,Red,100,100,NODE002
+NODE002,Skill Check,Requires hacker skills to proceed,RunnerType;+;2;Damage,HackerStat;+;1;Money,Normal,Blue,300,100,NODE003
+NODE003,Bonus Reward,Extra payment for successful completion,None;+;500;Money,None;-;1;Risk,Special,Green,500,100,
+NODE004,Risk Node,High-risk high-reward option,None;+;1000;Money,None;+;3;Risk,Normal,Yellow,300,250,NODE003
+NODE005,Synergy Bonus,Combo bonus for multiple runners,RunnerType;*;2;Money,NodeColor;+;1;Damage,Synergy,Purple,150,200,NODE004

@@ -1,0 +1,414 @@
+/* Johnson Contract Editor Styles */
+/* Inherits cyberpunk theme from main game */
+
+/* CSS Custom Properties */
+:root {
+    --primary-bg: #1a1a2e;
+    --secondary-bg: #16213e;
+    --accent-bg: #0f3460;
+    --text-primary: #e94560;
+    --text-secondary: #f5f5f5;
+    --text-muted: #bbbbbb;
+    --border-color: #533a7b;
+    --success-color: #27ae60;
+    --warning-color: #f39c12;
+    --error-color: #e74c3c;
+    --grid-gap: 1rem;
+    --border-radius: 8px;
+    --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+
+    /* Editor-specific colors */
+    --canvas-bg: #0d1421;
+    --grid-color: #2a3441;
+    --panel-bg: #1e2832;
+    --toolbar-bg: #151b23;
+}
+
+/* Global Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--primary-bg);
+    color: var(--text-secondary);
+    line-height: 1.6;
+    overflow: hidden; /* Prevent scrollbars on body */
+    height: 100vh;
+}
+
+/* Main Editor Container - 75/25 Layout */
+.editor-container {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* Toolbar */
+.toolbar {
+    background-color: var(--toolbar-bg);
+    border-bottom: 2px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+    flex-wrap: wrap;
+    min-height: 60px;
+}
+
+.toolbar-section {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.toolbar-section label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+/* Main Content Area */
+.main-content {
+    display: grid;
+    grid-template-columns: 3fr 1fr; /* 75% / 25% split */
+    height: 100%;
+    overflow: hidden;
+}
+
+/* Canvas Area (75%) */
+.canvas-area {
+    background-color: var(--canvas-bg);
+    position: relative;
+    overflow: hidden;
+    border-right: 2px solid var(--border-color);
+}
+
+.canvas-container {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    position: relative;
+}
+
+#editorCanvas {
+    display: block;
+    cursor: crosshair;
+    background-color: var(--canvas-bg);
+}
+
+/* Creation Panel (floating in canvas area) */
+.creation-panel {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    box-shadow: var(--box-shadow);
+    z-index: 10;
+    min-width: 200px;
+}
+
+.creation-panel h3 {
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+}
+
+.color-selector {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.color-btn {
+    width: 40px;
+    height: 40px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.color-btn:hover {
+    border-color: var(--text-primary);
+    transform: scale(1.05);
+}
+
+.color-btn.selected {
+    border-color: var(--text-primary);
+    border-width: 3px;
+}
+
+/* Properties Panel (25%) */
+.properties-panel {
+    background-color: var(--panel-bg);
+    border-left: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.panel-header {
+    background-color: var(--secondary-bg);
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.panel-header h2 {
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.panel-content {
+    flex: 1;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+/* Node Editor Form */
+.node-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.property-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.property-group label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.property-group input,
+.property-group textarea,
+.property-group select {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-family: inherit;
+}
+
+.property-group input:focus,
+.property-group textarea:focus,
+.property-group select:focus {
+    outline: none;
+    border-color: var(--text-primary);
+    background-color: var(--accent-bg);
+}
+
+.property-group textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+.position-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+}
+
+.property-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+/* No Selection State */
+.no-selection {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    text-align: center;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Button Styles */
+.btn-primary, .btn-secondary, .btn-danger {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn-primary {
+    background-color: var(--text-primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #d63851;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background-color: var(--accent-bg);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background-color: var(--secondary-bg);
+    border-color: var(--text-primary);
+}
+
+.btn-danger {
+    background-color: var(--error-color);
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #c0392b;
+}
+
+/* Input Controls */
+input[type="number"], input[type="range"] {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    width: 80px;
+}
+
+input[type="range"] {
+    width: 100px;
+    accent-color: var(--text-primary);
+}
+
+input[type="number"]:focus {
+    outline: none;
+    border-color: var(--text-primary);
+}
+
+/* Status Bar */
+.status-bar {
+    background-color: var(--toolbar-bg);
+    border-top: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    min-height: 40px;
+}
+
+#statusMessage {
+    color: var(--text-secondary);
+}
+
+/* Grid Visibility Classes */
+.grid-visible {
+    /* Applied to canvas when grid is visible */
+}
+
+.snap-enabled {
+    /* Applied to canvas when snap is enabled */
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .main-content {
+        grid-template-columns: 2fr 1fr;
+    }
+
+    .toolbar {
+        gap: 1rem;
+        padding: 0.5rem;
+    }
+
+    .creation-panel {
+        min-width: 180px;
+    }
+}
+
+@media (max-width: 768px) {
+    .main-content {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr auto;
+    }
+
+    .properties-panel {
+        max-height: 300px;
+        border-left: none;
+        border-top: 2px solid var(--border-color);
+    }
+
+    .toolbar {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: stretch;
+    }
+
+    .toolbar-section {
+        justify-content: center;
+    }
+}
+
+/* Animation classes */
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.scale-in {
+    animation: scaleIn 0.2s ease-out;
+}
+
+@keyframes scaleIn {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+/* Canvas cursors for different states */
+.canvas-container.panning {
+    cursor: grab;
+}
+
+.canvas-container.panning:active {
+    cursor: grabbing;
+}
+
+.canvas-container.zooming {
+    cursor: zoom-in;
+}
+
+/* Node colors for reference (used in JavaScript) */
+.node-color-red { color: #FF6467; }
+.node-color-yellow { color: #FFDF20; }
+.node-color-green { color: #4CAF50; }
+.node-color-blue { color: #51A2FF; }
+.node-color-purple { color: #9C27B0; }
+.node-color-grey { color: #757575; }
