@@ -1,0 +1,7 @@
+Node ID,Description,Effect Desc,Effect 1,Effect 2,Type,Color,X,Y,Connections
+START1,Entry Point,+2 Grit,None;+;2;Grit,,Normal,Red,100,200,"CHOICE1,CHOICE2"
+CHOICE1,Stealth Path,+1 Veil,None;+;1;Veil,,Normal,Blue,300,150,BONUS1
+CHOICE2,Combat Path,+2 Damage,None;+;2;Damage,,Normal,Green,300,250,BONUS2
+BONUS1,Silent Takedown,+3 Money,None;+;3;Money,,Normal,Yellow,500,150,FINAL
+BONUS2,Explosive Entry,+1 Risk and +5 Money,None;+;1;Risk,None;+;5;Money,Normal,Purple,500,250,FINAL
+FINAL,Mission Complete,Complete contract,None;+;10;Money,,Normal,Grey,700,200,

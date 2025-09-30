@@ -1,0 +1,5 @@
+Node ID,Description,Effect Desc,Effect 1,Effect 2,Type,Color,Layer,Slot,Connections
+1,Start Node,Begin the test,None;+;0;Money,,Normal,Red,0,0,2;3
+2,Combo Money Lets try this with a longer string,Effect description for long combo,None;+;100;Money,,Normal,Blue,1,0,4
+3,Hacker Veil you fight your way through the kitchen,Complex infiltration scenario with detailed description,RunnerType:Hacker;+;2;Veil,,Normal,Green,1,1,4
+4,Final Node,Complete the test,None;+;50;Money,,Normal,Yellow,2,0,

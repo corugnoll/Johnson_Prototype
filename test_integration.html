@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integration Test - Editor to Main Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .test-results {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+
+        .status {
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        input[type="file"] {
+            margin: 10px 0;
+        }
+
+        #gameCanvas {
+            border: 1px solid #ddd;
+            background: #f9f9f9;
+        }
+    </style>
+    <script src="Tools/node_modules/papaparse/papaparse.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Integration Test: Editor to Main Game</h1>
+        <p>This test validates that contracts exported from the editor can be imported and displayed correctly in the main game.</p>
+
+        <div class="test-section">
+            <h3>Step 1: Create Test Contract Data</h3>
+            <button onclick="createTestContract()">Create Test Contract (X,Y Format)</button>
+            <button onclick="createLegacyContract()">Create Legacy Contract (Layer/Slot)</button>
+            <div id="contractStatus" class="test-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Step 2: Export/Import Test</h3>
+            <button onclick="exportTestContract()">Export Test Contract as CSV</button>
+            <input type="file" id="importFile" accept=".csv" onchange="importTestContract(event)">
+            <div id="exportImportStatus" class="test-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Step 3: Main Game Visualization</h3>
+            <button onclick="loadIntoMainGame()">Load Contract into Main Game</button>
+            <div id="gameStatus" class="test-results"></div>
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+        </div>
+
+        <div class="test-section">
+            <h3>Step 4: Integration Validation</h3>
+            <button onclick="runIntegrationTests()">Run Full Integration Tests</button>
+            <div id="integrationResults" class="test-results"></div>
+        </div>
+    </div>
+
+    <!-- Include required JavaScript modules -->
+    <script src="js/csvLoader.js"></script>
+    <script src="js/gameState.js"></script>
+    <script src="js/visualPrototype.js"></script>
+    <script src="js/editor/nodeManager.js"></script>
+    <script src="js/editor/fileManager.js"></script>
+
+    <script>
+        let testContractData = null;
+        let csvLoader = null;
+        let gameState = null;
+        let visualRenderer = null;
+        let fileManager = null;
+
+        // Initialize test environment
+        function initializeTest() {
+            csvLoader = new CSVLoader();
+            gameState = new GameState();
+
+            const canvas = document.getElementById('gameCanvas');
+            visualRenderer = new VisualPrototypeRenderer(canvas);
+
+            // Create mock node manager for file manager
+            const mockNodeManager = {
+                getAllNodes: () => testContractData || [],
+                calculateNodeDimensions: (node) => {
+                    node.width = 80;
+                    node.height = 60;
+                }
+            };
+
+            fileManager = new FileManager(mockNodeManager, null);
+
+            updateStatus('contractStatus', 'Test environment initialized', 'success');
+        }
+
+        function createTestContract() {
+            testContractData = [
+                {
+                    id: 'TEST1',
+                    description: 'Start Node',
+                    effectDesc: '+2 Grit on start',
+                    effect1: 'None;+;2;Grit',
+                    effect2: '',
+                    type: 'Normal',
+                    color: 'Red',
+                    x: 100,
+                    y: 100,
+                    connections: ['TEST2', 'TEST3'],
+                    width: 80,
+                    height: 60
+                },
+                {
+                    id: 'TEST2',
+                    description: 'Choice A',
+                    effectDesc: '+1 Damage',
+                    effect1: 'None;+;1;Damage',
+                    effect2: '',
+                    type: 'Normal',
+                    color: 'Blue',
+                    x: 250,
+                    y: 50,
+                    connections: ['TEST4'],
+                    width: 80,
+                    height: 60
+                },
+                {
+                    id: 'TEST3',
+                    description: 'Choice B',
+                    effectDesc: '+1 Risk',
+                    effect1: 'None;+;1;Risk',
+                    effect2: '',
+                    type: 'Normal',
+                    color: 'Green',
+                    x: 250,
+                    y: 150,
+                    connections: ['TEST4'],
+                    width: 80,
+                    height: 60
+                },
+                {
+                    id: 'TEST4',
+                    description: 'End Node',
+                    effectDesc: '+5 Money',
+                    effect1: 'None;+;5;Money',
+                    effect2: '',
+                    type: 'Normal',
+                    color: 'Yellow',
+                    x: 400,
+                    y: 100,
+                    connections: [],
+                    width: 80,
+                    height: 60
+                }
+            ];
+
+            updateStatus('contractStatus',
+                `Created test contract with ${testContractData.length} nodes using X,Y positioning:\n` +
+                testContractData.map(n => `- ${n.id}: (${n.x}, ${n.y}) - ${n.description}`).join('\n'),
+                'success'
+            );
+        }
+
+        function createLegacyContract() {
+            testContractData = [
+                {
+                    id: 'LEGACY1',
+                    description: 'Legacy Start',
+                    effectDesc: '+2 Grit',
+                    effect1: 'None;+;2;Grit',
+                    effect2: '',
+                    type: 'Normal',
+                    color: 'Red',
+                    layer: 0,
+                    slot: 'CE',
+                    x: 0, // Will be calculated by layout
+                    y: 0,
+                    connections: ['LEGACY2'],
+                    width: 80,
+                    height: 60
+                },
+                {
+                    id: 'LEGACY2',
+                    description: 'Legacy End',
+                    effectDesc: '+3 Money',
+                    effect1: 'None;+;3;Money',
+                    effect2: '',
+                    type: 'Normal',
+                    color: 'Green',
+                    layer: 1,
+                    slot: 'CE',
+                    x: 0, // Will be calculated by layout
+                    y: 0,
+                    connections: [],
+                    width: 80,
+                    height: 60
+                }
+            ];
+
+            updateStatus('contractStatus',
+                `Created legacy contract with ${testContractData.length} nodes using Layer/Slot positioning:\n` +
+                testContractData.map(n => `- ${n.id}: Layer ${n.layer}, Slot ${n.slot} - ${n.description}`).join('\n'),
+                'success'
+            );
+        }
+
+        async function exportTestContract() {
+            if (!testContractData) {
+                updateStatus('exportImportStatus', 'No test contract data available. Create a test contract first.', 'error');
+                return;
+            }
+
+            try {
+                // Update file manager's mock data
+                fileManager.nodeManager.getAllNodes = () => testContractData;
+
+                const success = await fileManager.exportContract('test-contract.csv');
+                if (success) {
+                    updateStatus('exportImportStatus', 'Test contract exported successfully', 'success');
+                } else {
+                    updateStatus('exportImportStatus', 'Export failed', 'error');
+                }
+            } catch (error) {
+                updateStatus('exportImportStatus', `Export error: ${error.message}`, 'error');
+            }
+        }
+
+        async function importTestContract(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                updateStatus('exportImportStatus', 'Importing contract file...', 'warning');
+
+                const parsedData = await csvLoader.loadFile(file);
+                const processedData = csvLoader.processDataForGame(parsedData);
+
+                // Store imported data
+                testContractData = processedData;
+
+                updateStatus('exportImportStatus',
+                    `Import successful!\n` +
+                    `Imported ${processedData.length} nodes:\n` +
+                    processedData.map(n => `- ${n.id}: (${n.x}, ${n.y}) - ${n.description}`).join('\n'),
+                    'success'
+                );
+
+            } catch (error) {
+                updateStatus('exportImportStatus', `Import error: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadIntoMainGame() {
+            if (!testContractData) {
+                updateStatus('gameStatus', 'No contract data to load. Create or import a contract first.', 'error');
+                return;
+            }
+
+            try {
+                // Load into game state
+                gameState.setContractData(testContractData);
+
+                // Create visual contract data
+                const visualContractData = csvLoader.createVisualContractData(testContractData);
+
+                // Load into visual renderer
+                visualRenderer.loadContract(visualContractData);
+
+                const state = visualRenderer.getVisualizationState();
+                updateStatus('gameStatus',
+                    `Contract loaded into main game successfully!\n` +
+                    `Nodes: ${state.nodeCount}\n` +
+                    `Connections: ${state.connectionCount}\n` +
+                    `Format: ${visualContractData.metadata.format}\n` +
+                    `Visual state: ${state.loaded ? 'Ready' : 'Failed'}`,
+                    'success'
+                );
+
+            } catch (error) {
+                updateStatus('gameStatus', `Main game loading error: ${error.message}`, 'error');
+            }
+        }
+
+        async function runIntegrationTests() {
+            const results = [];
+            let passedTests = 0;
+            let totalTests = 0;
+
+            // Test 1: CSV Format Detection
+            totalTests++;
+            try {
+                createTestContract();
+                const hasXY = testContractData[0].hasOwnProperty('x') && testContractData[0].hasOwnProperty('y');
+                if (hasXY) {
+                    results.push('✓ X,Y format detection: PASS');
+                    passedTests++;
+                } else {
+                    results.push('✗ X,Y format detection: FAIL');
+                }
+            } catch (error) {
+                results.push(`✗ X,Y format detection: ERROR - ${error.message}`);
+            }
+
+            // Test 2: Legacy Format Support
+            totalTests++;
+            try {
+                createLegacyContract();
+                const hasLayer = testContractData[0].hasOwnProperty('layer');
+                if (hasLayer) {
+                    results.push('✓ Legacy format support: PASS');
+                    passedTests++;
+                } else {
+                    results.push('✗ Legacy format support: FAIL');
+                }
+            } catch (error) {
+                results.push(`✗ Legacy format support: ERROR - ${error.message}`);
+            }
+
+            // Test 3: Data Validation
+            totalTests++;
+            try {
+                const validationSummary = fileManager.getValidationSummary();
+                if (validationSummary.requiredColumns.includes('X') && validationSummary.requiredColumns.includes('Y')) {
+                    results.push('✓ Validation rules updated: PASS');
+                    passedTests++;
+                } else {
+                    results.push('✗ Validation rules updated: FAIL');
+                }
+            } catch (error) {
+                results.push(`✗ Validation rules updated: ERROR - ${error.message}`);
+            }
+
+            // Test 4: Visual Rendering
+            totalTests++;
+            try {
+                createTestContract();
+                gameState.setContractData(testContractData);
+                const visualContractData = csvLoader.createVisualContractData(testContractData);
+                visualRenderer.loadContract(visualContractData);
+
+                const state = visualRenderer.getVisualizationState();
+                if (state.loaded && state.nodeCount === testContractData.length) {
+                    results.push('✓ Visual rendering integration: PASS');
+                    passedTests++;
+                } else {
+                    results.push('✗ Visual rendering integration: FAIL');
+                }
+            } catch (error) {
+                results.push(`✗ Visual rendering integration: ERROR - ${error.message}`);
+            }
+
+            // Test 5: Performance Check
+            totalTests++;
+            try {
+                const startTime = performance.now();
+                for (let i = 0; i < 100; i++) {
+                    csvLoader.processDataForGame(testContractData);
+                }
+                const endTime = performance.now();
+                const avgTime = (endTime - startTime) / 100;
+
+                if (avgTime < 10) { // Less than 10ms average
+                    results.push(`✓ Performance test: PASS (${avgTime.toFixed(2)}ms avg)`);
+                    passedTests++;
+                } else {
+                    results.push(`✗ Performance test: FAIL (${avgTime.toFixed(2)}ms avg, expected < 10ms)`);
+                }
+            } catch (error) {
+                results.push(`✗ Performance test: ERROR - ${error.message}`);
+            }
+
+            // Display results
+            const status = passedTests === totalTests ? 'success' :
+                          passedTests > totalTests / 2 ? 'warning' : 'error';
+
+            updateStatus('integrationResults',
+                `Integration Test Results (${passedTests}/${totalTests} passed):\n\n` +
+                results.join('\n') + '\n\n' +
+                `Overall Status: ${status.toUpperCase()}`,
+                status
+            );
+        }
+
+        function updateStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `test-results status ${type}`;
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', initializeTest);
+    </script>
+</body>
+</html>

@@ -1,6 +1,13 @@
 /**
  * Visual Prototype Module
  * Canvas-based visualization system for contract node trees
+ * Updated 2025-09-30: Unified with editor text rendering system for clean, consistent display
+ *
+ * Text Rendering Approach:
+ * - Uses editor-compatible values (16px line height, 6px padding)
+ * - Temporary canvas for clean text measurements
+ * - Simple, predictable layout calculations
+ * - 'top' text baseline for consistent positioning
  */
 
 class VisualPrototypeRenderer {
@@ -11,8 +18,8 @@ class VisualPrototypeRenderer {
         this.nodePositions = new Map();
         this.onNodeSelectionChange = null; // Callback for node selection changes
 
-        // Visual configuration - optimized for horizontal layout
-        this.nodeSize = { width: 180, height: 90 };
+        // Visual configuration - matching editor defaults
+        this.nodeSize = { width: 80, height: 60 }; // Match editor minimums
         this.nodeSpacing = { horizontal: 250, vertical: 120 };
 
         // Pan state management for scrollable interface
@@ -27,6 +34,17 @@ class VisualPrototypeRenderer {
         this.minZoom = 0.25;
         this.maxZoom = 3.0;
         this.zoomSpeed = 0.1;
+
+        // Performance optimization settings
+        this.performanceMode = false;
+        this.lastRenderTime = 0;
+        this.renderThrottleMs = 16; // 60 FPS max
+        this.viewportCulling = true;
+        this.connectionCache = new Map();
+        this.textRenderCache = new Map();
+
+        // Viewport culling bounds
+        this.visibleBounds = { left: 0, top: 0, right: 0, bottom: 0 };
 
         // Node colors with exact hex values from specification
         this.nodeColors = {
@@ -115,106 +133,176 @@ class VisualPrototypeRenderer {
     }
 
     /**
-     * Calculate node positions using layer/slot algorithm with synergy node support
+     * Calculate node positions using direct X,Y coordinates from contract data
      */
     calculateLayout() {
         if (!this.contractData) return;
 
         const startTime = performance.now();
 
-        // Separate synergy nodes from regular nodes
-        const synergyNodes = [];
-        const regularLayers = new Map();
-
+        // Use direct X,Y positioning from contract data
         this.contractData.nodes.forEach(node => {
-            if (node.type === 'Synergy') {
-                synergyNodes.push(node);
+            // Use the X,Y coordinates directly from the node data
+            const x = typeof node.x === 'number' ? node.x : 0;
+            const y = typeof node.y === 'number' ? node.y : 0;
+
+            // Calculate optimal node dimensions
+            let width, height;
+            if (typeof node.width === 'number' && typeof node.height === 'number') {
+                // Use dimensions from CSV (editor-exported contracts)
+                width = node.width;
+                height = node.height;
             } else {
-                if (!regularLayers.has(node.layer)) {
-                    regularLayers.set(node.layer, []);
-                }
-                regularLayers.get(node.layer).push(node);
+                // Calculate dimensions based on text content (legacy contracts)
+                const dimensions = this.calculateOptimalNodeSize(node);
+                width = dimensions.width;
+                height = dimensions.height;
             }
+
+            this.nodePositions.set(node.id, {
+                x: x - width / 2,
+                y: y - height / 2,
+                width: width,
+                height: height
+            });
+
+            // Update node position for connection calculations
+            node.position = { x, y };
         });
-
-        const canvasCenterX = this.canvas.width / 2;
-        const synergyRowHeight = 50;
-        const regularStartY = synergyNodes.length > 0 ? synergyRowHeight + this.nodeSpacing.vertical : 50;
-
-        // Position synergy nodes at the top
-        this.positionSynergyNodes(synergyNodes, canvasCenterX, synergyRowHeight);
-
-        // Position regular nodes below synergy nodes
-        this.positionRegularNodes(regularLayers, canvasCenterX, regularStartY);
 
         // Calculate tree bounds for pan constraints
         this.calculateTreeBounds();
 
         const endTime = performance.now();
-        if (endTime - startTime > 25) {
+        if (endTime - startTime > 10) {
             console.warn(`Slow layout calculation: ${endTime - startTime}ms`);
+        }
+
+        console.log(`Positioned ${this.contractData.nodes.size} nodes using X,Y coordinates`);
+
+        // Enable performance mode for large contracts
+        if (this.contractData.nodes.size > 50) {
+            this.enablePerformanceMode();
         }
     }
 
     /**
-     * Position synergy nodes at the top of the tree
-     * @param {Array} synergyNodes - Array of synergy nodes
-     * @param {number} centerX - Canvas center X coordinate
-     * @param {number} y - Y position for synergy row
+     * Calculate optimal node size based on text content (editor-compatible approach)
+     * @param {VisualNode} node - Node to calculate size for
+     * @returns {Object} Optimal width and height
+     * Updated 2025-09-30: Unified with editor text rendering system
      */
-    positionSynergyNodes(synergyNodes, centerX, y) {
-        if (synergyNodes.length === 0) return;
+    calculateOptimalNodeSize(node) {
+        // MATCH EDITOR EXACTLY: Use same constants
+        const padding = 6;              // Editor value (was 20)
+        const maxWidth = 200;           // Editor value (was 300)
+        const lineHeight = 16;          // Editor value (was 20)
+        const separatorHeight = 4;      // Editor value (was 8)
+        const minWidth = 80;            // Keep same
+        const minHeight = 60;           // Keep same
 
-        // Calculate horizontal spacing for synergy nodes
-        const totalWidth = (synergyNodes.length - 1) * this.nodeSpacing.horizontal;
-        const startX = centerX - (totalWidth / 2);
+        // Create temporary canvas for clean measurements (like editor)
+        const tempCanvas = document.createElement('canvas');
+        const ctx = tempCanvas.getContext('2d');
 
-        synergyNodes.forEach((node, index) => {
-            const x = startX + (index * this.nodeSpacing.horizontal);
+        // Calculate available width for text (accounting for padding)
+        const availableWidth = maxWidth - padding * 2;
 
-            this.nodePositions.set(node.id, {
-                x: x - this.nodeSize.width / 2,
-                y: y,
-                width: this.nodeSize.width,
-                height: this.nodeSize.height
-            });
+        // Process description text with linebreaks (set font FIRST)
+        ctx.font = 'bold 14px Arial';
+        const descLines = this.processTextWithLinebreaks(node.description || '', availableWidth, ctx, 14);
+        const descWidth = Math.max(...descLines.map(line => ctx.measureText(line).width));
 
-            node.position = { x, y };
-        });
+        // Process effect description text with linebreaks (set font FIRST)
+        ctx.font = '12px Arial';
+        const effectLines = this.processTextWithLinebreaks(node.effectDescription || '', availableWidth, ctx, 12);
+        const effectWidth = Math.max(...effectLines.map(line => ctx.measureText(line).width));
+
+        // Calculate dimensions with precise height calculation (MATCH EDITOR)
+        const maxTextWidth = Math.max(descWidth, effectWidth);
+        const hasEffect = effectLines.length > 0 && effectLines[0].trim() !== '';
+
+        // CRITICAL: Calculate text height exactly as in editor
+        const totalTextHeight = (descLines.length * lineHeight) +
+                               (hasEffect ? separatorHeight + (effectLines.length * lineHeight) : 0);
+
+        // Calculate final dimensions (MATCH EDITOR - no extraVerticalSpace)
+        const finalWidth = Math.max(minWidth, maxTextWidth + padding * 2);
+        const finalHeight = Math.max(minHeight, totalTextHeight + padding * 2);
+
+        return { width: finalWidth, height: finalHeight };
+    }
+
+    // Removed duplicate text processing functions - now using unified approach
+
+    /**
+     * Legacy positioning methods removed - now using direct X,Y coordinates
+     * All positioning is handled in calculateLayout() using node.x and node.y
+     */
+
+    /**
+     * Enable performance mode for large contracts
+     */
+    enablePerformanceMode() {
+        this.performanceMode = true;
+        this.renderThrottleMs = 33; // 30 FPS for performance
+        console.log('Performance mode enabled for large contract');
     }
 
     /**
-     * Position regular nodes in layers (left-to-right layout)
-     * @param {Map} layers - Map of layer number to nodes
-     * @param {number} centerX - Canvas center X coordinate (unused in horizontal layout)
-     * @param {number} startY - Starting Y position
+     * Disable performance mode
      */
-    positionRegularNodes(layers, centerX, startY) {
-        const sortedLayers = Array.from(layers.keys()).sort((a, b) => a - b);
-        const canvasCenterY = this.canvas.height / 2;
+    disablePerformanceMode() {
+        this.performanceMode = false;
+        this.renderThrottleMs = 16; // 60 FPS normal
+        this.clearCaches();
+        console.log('Performance mode disabled');
+    }
 
-        sortedLayers.forEach((layerNum, layerIndex) => {
-            const layerNodes = layers.get(layerNum);
-            // NEW: Use X position for layers instead of Y (left-to-right)
-            const x = 100 + (layerIndex * this.nodeSpacing.horizontal);
+    /**
+     * Clear performance caches
+     */
+    clearCaches() {
+        this.connectionCache.clear();
+        this.textRenderCache.clear();
+    }
 
-            // Calculate vertical spacing to center the layer column
-            const totalHeight = (layerNodes.length - 1) * this.nodeSpacing.vertical;
-            const layerStartY = canvasCenterY - (totalHeight / 2);
+    /**
+     * Update visible bounds for viewport culling
+     */
+    updateVisibleBounds() {
+        const padding = 100; // Extra padding for smooth scrolling
+        this.visibleBounds = {
+            left: (-this.panOffset.x / this.zoomLevel) - padding,
+            top: (-this.panOffset.y / this.zoomLevel) - padding,
+            right: (-this.panOffset.x + this.canvas.width) / this.zoomLevel + padding,
+            bottom: (-this.panOffset.y + this.canvas.height) / this.zoomLevel + padding
+        };
+    }
 
-            layerNodes.forEach((node, nodeIndex) => {
-                const y = layerStartY + (nodeIndex * this.nodeSpacing.vertical);
+    /**
+     * Check if a node is within the visible viewport
+     * @param {Object} pos - Node position
+     * @returns {boolean} True if visible
+     */
+    isNodeVisible(pos) {
+        if (!this.viewportCulling) return true;
 
-                this.nodePositions.set(node.id, {
-                    x: x - this.nodeSize.width / 2,
-                    y: y - this.nodeSize.height / 2,
-                    width: this.nodeSize.width,
-                    height: this.nodeSize.height
-                });
+        return pos.x < this.visibleBounds.right &&
+               pos.x + pos.width > this.visibleBounds.left &&
+               pos.y < this.visibleBounds.bottom &&
+               pos.y + pos.height > this.visibleBounds.top;
+    }
 
-                node.position = { x, y };
-            });
-        });
+    /**
+     * Throttled render method for performance
+     */
+    renderThrottled() {
+        const now = performance.now();
+        if (now - this.lastRenderTime >= this.renderThrottleMs) {
+            this.render();
+            this.lastRenderTime = now;
+        }
     }
 
     /**
@@ -222,6 +310,11 @@ class VisualPrototypeRenderer {
      */
     render() {
         if (!this.contractData) return;
+
+        const startTime = performance.now();
+
+        // Update visible bounds for viewport culling
+        this.updateVisibleBounds();
 
         // Clear canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -239,15 +332,43 @@ class VisualPrototypeRenderer {
 
         // Restore transformation
         this.ctx.restore();
+
+        // Performance monitoring
+        const endTime = performance.now();
+        const renderTime = endTime - startTime;
+
+        if (renderTime > 16 && !this.performanceMode) {
+            console.warn(`Slow render: ${renderTime.toFixed(2)}ms`);
+            if (renderTime > 50) {
+                this.enablePerformanceMode();
+            }
+        }
     }
 
     /**
-     * Render all nodes
+     * Render all nodes with viewport culling
      */
     renderNodes() {
+        let renderedCount = 0;
+        let culledCount = 0;
+
         this.contractData.nodes.forEach(node => {
-            this.renderNode(node);
+            const pos = this.nodePositions.get(node.id);
+            if (!pos) return;
+
+            // Viewport culling - only render visible nodes
+            if (this.isNodeVisible(pos)) {
+                this.renderNode(node);
+                renderedCount++;
+            } else {
+                culledCount++;
+            }
         });
+
+        // Log culling statistics for debugging large contracts
+        if (this.performanceMode && culledCount > 0) {
+            console.debug(`Rendered ${renderedCount} nodes, culled ${culledCount} nodes`);
+        }
     }
 
     /**
@@ -265,41 +386,194 @@ class VisualPrototypeRenderer {
             this.renderRegularNode(node, pos);
         }
 
-        // Draw node ID in corner for debugging
-        this.ctx.fillStyle = '#666666';
-        this.ctx.font = '20px Arial';
-        this.ctx.textAlign = 'left';
-        this.ctx.fillText(node.id, pos.x + 4, pos.y + 24);
-        this.ctx.textAlign = 'center';
+        // Clean node rendering without ID clutter
     }
 
     /**
-     * Render a regular node with standard styling
+     * Render a regular node with enhanced editor-style rendering
      * @param {VisualNode} node - Node to render
      * @param {Object} pos - Node position and dimensions
      */
     renderRegularNode(node, pos) {
         const color = this.nodeColors[node.color] || '#CCCCCC';
 
-        // Apply state styling
-        if (node.state === 'selected') {
-            this.ctx.strokeStyle = '#FFDF20';  // Yellow border for selected
-            this.ctx.lineWidth = 3;
-        } else if (node.state === 'unavailable') {
-            this.ctx.strokeStyle = '#666666';
-            this.ctx.lineWidth = 1;
-        } else {
-            this.ctx.strokeStyle = '#333333';
-            this.ctx.lineWidth = 1;
-        }
-
-        // Draw node rectangle
+        // Draw node background
         this.ctx.fillStyle = node.state === 'unavailable' ? this.desaturateColor(color) : color;
         this.ctx.fillRect(pos.x, pos.y, pos.width, pos.height);
+
+        // Draw node border with proper selection styling
+        if (node.state === 'selected') {
+            this.ctx.strokeStyle = '#FFFFFF';  // White border for selected
+            this.ctx.lineWidth = 3;
+        } else {
+            this.ctx.strokeStyle = '#000000';  // Black border for normal
+            this.ctx.lineWidth = 1;
+        }
         this.ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
 
-        // Render node text with description and effect description
-        this.renderNodeText(node, pos);
+        // Render enhanced node text with proper layout
+        this.renderEnhancedNodeText(node, pos);
+    }
+
+    /**
+     * Get contrasting text color for background (from editor)
+     */
+    getContrastColor(backgroundColor, alpha = 1) {
+        // Convert hex to RGB
+        const hex = backgroundColor.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+
+        // Calculate luminance
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+        // Return black or white based on luminance
+        const color = luminance > 0.5 ? '#000000' : '#FFFFFF';
+        return alpha < 1 ? color + Math.floor(alpha * 255).toString(16).padStart(2, '0') : color;
+    }
+
+    /**
+     * Render node text with description and effect description (editor-compatible)
+     * @param {VisualNode} node - Node to render text for
+     * @param {Object} pos - Node position and dimensions
+     */
+    renderEnhancedNodeText(node, pos) {
+        // MATCH EDITOR EXACTLY: Use same constants
+        const padding = 6;              // Editor value (was 20)
+        const primaryFontSize = 14;     // Same as editor
+        const secondaryFontSize = 12;   // Same as editor
+        const lineHeight = 16;          // Editor value (was 20)
+        const separatorHeight = 4;      // Editor value (was 8)
+
+        const availableWidth = pos.width - (padding * 2);
+
+        // Create temporary canvas for text processing (like editor)
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+
+        // Process text with linebreak support (set font FIRST on temp context)
+        tempCtx.font = 'bold 14px Arial';
+        const descriptionText = this.processTextWithLinebreaks(
+            node.description || '',
+            availableWidth,
+            tempCtx,
+            14
+        );
+
+        tempCtx.font = '12px Arial';
+        const effectText = this.processTextWithLinebreaks(
+            node.effectDescription || '',
+            availableWidth,
+            tempCtx,
+            12
+        );
+
+        // Calculate total text height needed (MATCH EDITOR)
+        const descLines = descriptionText.length;
+        const effectLines = effectText.length;
+        const hasEffect = effectText.length > 0 && effectText[0].trim() !== '';
+
+        const totalTextHeight = (descLines * lineHeight) +
+                               (hasEffect ? separatorHeight + (effectLines * lineHeight) : 0);
+
+        // Simple vertical centering (MATCH EDITOR - no extraVerticalSpace)
+        const startY = pos.y + (pos.height - totalTextHeight) / 2;
+
+        // Render description text (primary)
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.font = `bold ${primaryFontSize}px Arial`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'top';  // CRITICAL: 'top' baseline like editor
+
+        let currentY = startY;
+        descriptionText.forEach((line, index) => {
+            this.ctx.fillText(line, pos.x + pos.width/2, currentY + (index * lineHeight));
+        });
+        currentY += descLines * lineHeight;
+
+        // Render separator and effect text if available
+        if (hasEffect) {
+            // Render visual separator (horizontal line)
+            const separatorY = currentY + separatorHeight/2;
+            this.ctx.strokeStyle = '#CCCCCC';
+            this.ctx.lineWidth = 1;
+            this.ctx.beginPath();
+            this.ctx.moveTo(pos.x + padding + 8, separatorY);
+            this.ctx.lineTo(pos.x + pos.width - padding - 8, separatorY);
+            this.ctx.stroke();
+
+            // Render effect description text (secondary)
+            this.ctx.fillStyle = '#E0E0E0';
+            this.ctx.font = `${secondaryFontSize}px Arial`;
+            currentY += separatorHeight;
+
+            effectText.forEach((line, index) => {
+                this.ctx.fillText(line, pos.x + pos.width/2, currentY + (index * lineHeight));
+            });
+        }
+    }
+
+    /**
+     * Process text with linebreak support and word wrapping (editor-compatible)
+     * @param {string} text - Text to process
+     * @param {number} maxWidth - Maximum width in pixels
+     * @param {CanvasRenderingContext2D} ctx - Canvas context for measurement
+     * @param {number} fontSize - Font size for measurement
+     * @returns {Array<string>} Array of text lines
+     */
+    processTextWithLinebreaks(text, maxWidth, ctx, fontSize) {
+        if (!text) return [''];
+
+        // MATCH EDITOR: Set font on context for accurate measurement
+        ctx.font = `${fontSize}px Arial`;
+
+        // Split by explicit linebreaks first
+        const paragraphs = text.split(/\r?\n/);
+        const result = [];
+
+        paragraphs.forEach(paragraph => {
+            if (paragraph.trim() === '') {
+                result.push(''); // Preserve empty lines
+            } else {
+                // Word wrap each paragraph
+                const wrappedLines = this.wrapText(ctx, paragraph, maxWidth);
+                result.push(...wrappedLines);
+            }
+        });
+
+        return result.length > 0 ? result : [''];
+    }
+
+    /**
+     * Wrap text to fit within specified width (editor-compatible)
+     * @param {CanvasRenderingContext2D} ctx - Canvas context for measurement
+     * @param {string} text - Text to wrap
+     * @param {number} maxWidth - Maximum width in pixels
+     * @returns {Array<string>} Array of wrapped text lines
+     */
+    wrapText(ctx, text, maxWidth) {
+        const words = text.split(' ');
+        const lines = [];
+        let currentLine = '';
+
+        for (let word of words) {
+            const testLine = currentLine + (currentLine ? ' ' : '') + word;
+            const metrics = ctx.measureText(testLine);
+
+            if (metrics.width > maxWidth && currentLine) {
+                lines.push(currentLine);
+                currentLine = word;
+            } else {
+                currentLine = testLine;
+            }
+        }
+
+        if (currentLine) {
+            lines.push(currentLine);
+        }
+
+        return lines.length > 0 ? lines : [text];
     }
 
     /**
@@ -386,73 +660,43 @@ class VisualPrototypeRenderer {
         }
     }
 
-    /**
-     * Render node text with description and effect description
-     * @param {VisualNode} node - Node to render text for
-     * @param {Object} pos - Node position and dimensions
-     */
-    renderNodeText(node, pos) {
-        const padding = 6;
-        const availableWidth = pos.width - (padding * 2);
-
-        // Calculate text sections with improved truncation
-        const descriptionText = this.truncateText(node.description || '', availableWidth, 18);
-        const effectText = this.truncateText(node.effectDescription || '', availableWidth, 16);
-
-        // Font configuration for better readability in smaller nodes - doubled sizes
-        const primaryFontSize = 18;
-        const secondaryFontSize = 14;
-        const lineHeight = 20;
-        const separatorHeight = 4;
-
-        // Calculate vertical positioning - optimized for dual-line display
-        const totalTextHeight = lineHeight * 2 + separatorHeight;
-        const startY = pos.y + (pos.height - totalTextHeight) / 2;
-
-        const descriptionY = startY + lineHeight/2;
-        const separatorY = descriptionY + lineHeight/2 + separatorHeight/2;
-        const effectTextY = separatorY + separatorHeight/2 + lineHeight/2;
-
-        // Ensure text alignment is centered
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-
-        // Render description text (primary) with white text for better contrast
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = `bold ${primaryFontSize}px Arial`;
-        this.ctx.fillText(descriptionText, pos.x + pos.width/2, descriptionY);
-
-        // Always render separator and effect text if available
-        if (effectText && effectText.trim() !== '') {
-            // Render visual separator (horizontal line)
-            this.ctx.strokeStyle = '#CCCCCC';
-            this.ctx.lineWidth = 1;
-            this.ctx.beginPath();
-            this.ctx.moveTo(pos.x + padding + 8, separatorY);
-            this.ctx.lineTo(pos.x + pos.width - padding - 8, separatorY);
-            this.ctx.stroke();
-
-            // Render effect description text (secondary) with lighter color
-            this.ctx.fillStyle = '#E0E0E0';
-            this.ctx.font = `${secondaryFontSize}px Arial`;
-            this.ctx.fillText(effectText, pos.x + pos.width/2, effectTextY);
-        }
-    }
 
     /**
-     * Render all connection lines
+     * Render all connection lines with viewport culling and caching
      */
     renderConnections() {
         if (!this.contractData) return;
 
         const connections = this.contractData.getAllConnections();
+        let renderedConnections = 0;
+        let culledConnections = 0;
+
         connections.forEach(connection => {
-            this.renderConnection(connection.from, connection.to);
+            const fromPos = this.nodePositions.get(connection.from);
+            const toPos = this.nodePositions.get(connection.to);
+
+            if (!fromPos || !toPos) return;
+
+            // Connection culling - only render if either endpoint is visible
+            const fromVisible = this.isNodeVisible(fromPos);
+            const toVisible = this.isNodeVisible(toPos);
+
+            if (fromVisible || toVisible) {
+                this.renderConnection(connection.from, connection.to);
+                renderedConnections++;
+            } else {
+                culledConnections++;
+            }
         });
+
+        // Log connection culling statistics for large contracts
+        if (this.performanceMode && culledConnections > 0) {
+            console.debug(`Rendered ${renderedConnections} connections, culled ${culledConnections} connections`);
+        }
     }
 
     /**
-     * Render a connection line between two nodes (orthogonal routing)
+     * Render a connection line between two nodes (enhanced editor-style routing)
      * @param {string} fromId - Source node ID
      * @param {string} toId - Target node ID
      */
@@ -462,13 +706,19 @@ class VisualPrototypeRenderer {
 
         if (!fromPos || !toPos) return;
 
-        // Calculate connection points and routing path
-        const { fromPoint, toPoint } = this.calculateConnectionPoints(fromPos, toPos);
-        const path = this.generateOrthogonalPath(fromPoint, toPoint);
+        // Calculate enhanced connection path using editor-style routing
+        const path = this.calculateEnhancedConnectionPath(fromPos, toPos);
+        if (!path || path.length < 2) return;
 
-        // Render the connection path
-        this.ctx.strokeStyle = '#666666';
+        this.ctx.save();
+
+        // Enhanced line styling (matching editor)
+        this.ctx.strokeStyle = '#FFFFFF';  // White lines like editor
         this.ctx.lineWidth = 2;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+
+        // Draw the connection path
         this.ctx.beginPath();
         this.ctx.moveTo(path[0].x, path[0].y);
 
@@ -476,6 +726,143 @@ class VisualPrototypeRenderer {
             this.ctx.lineTo(path[i].x, path[i].y);
         }
 
+        this.ctx.stroke();
+
+        // Draw arrow head at the end
+        this.drawConnectionArrow(path[path.length - 1], path[path.length - 2]);
+
+        this.ctx.restore();
+    }
+
+    /**
+     * Calculate enhanced connection path using editor-style routing
+     * @param {Object} fromPos - From node position and dimensions
+     * @param {Object} toPos - To node position and dimensions
+     * @returns {Array} Array of points forming the connection path
+     */
+    calculateEnhancedConnectionPath(fromPos, toPos) {
+        // Find best anchor points on node edges (like editor)
+        const anchorPoints = this.findBestAnchorPoints(fromPos, toPos);
+        const startPoint = anchorPoints.start;
+        const endPoint = anchorPoints.end;
+
+        // Generate 90-degree angle path
+        return this.generateRightAnglePath(startPoint, endPoint);
+    }
+
+    /**
+     * Find best anchor points on node edges for connection (matching editor implementation)
+     * @param {Object} fromPos - From node position
+     * @param {Object} toPos - To node position
+     * @returns {Object} Start and end anchor points
+     */
+    findBestAnchorPoints(fromPos, toPos) {
+        // Get center points of both nodes
+        const center1 = {
+            x: fromPos.x + fromPos.width / 2,
+            y: fromPos.y + fromPos.height / 2
+        };
+        const center2 = {
+            x: toPos.x + toPos.width / 2,
+            y: toPos.y + toPos.height / 2
+        };
+
+        // Calculate direction from node1 to node2
+        const dx = center2.x - center1.x;
+        const dy = center2.y - center1.y;
+
+        // Determine best anchor points based on relative positions
+        let startAnchor, endAnchor;
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+            // Horizontal connection preferred
+            if (dx > 0) {
+                // Node2 is to the right of node1
+                startAnchor = { x: fromPos.x + fromPos.width, y: center1.y };
+                endAnchor = { x: toPos.x, y: center2.y };
+            } else {
+                // Node2 is to the left of node1
+                startAnchor = { x: fromPos.x, y: center1.y };
+                endAnchor = { x: toPos.x + toPos.width, y: center2.y };
+            }
+        } else {
+            // Vertical connection preferred
+            if (dy > 0) {
+                // Node2 is below node1
+                startAnchor = { x: center1.x, y: fromPos.y + fromPos.height };
+                endAnchor = { x: center2.x, y: toPos.y };
+            } else {
+                // Node2 is above node1
+                startAnchor = { x: center1.x, y: fromPos.y };
+                endAnchor = { x: center2.x, y: toPos.y + toPos.height };
+            }
+        }
+
+        return {
+            start: startAnchor,
+            end: endAnchor
+        };
+    }
+
+    /**
+     * Generate right-angle path with clean perpendicular entry/exit (matching editor implementation)
+     * @param {Object} startPoint - Starting point
+     * @param {Object} endPoint - Ending point
+     * @returns {Array} Array of points forming the path
+     */
+    generateRightAnglePath(startPoint, endPoint) {
+        const dx = endPoint.x - startPoint.x;
+        const dy = endPoint.y - startPoint.y;
+
+        // If already aligned, use straight line
+        if (Math.abs(dx) < 5) {
+            return [startPoint, { x: startPoint.x, y: endPoint.y }];
+        }
+        if (Math.abs(dy) < 5) {
+            return [startPoint, { x: endPoint.x, y: startPoint.y }];
+        }
+
+        // Use L-shaped routing with midpoint (matching editor implementation)
+        const midPoint = {
+            x: startPoint.x + dx * 0.5,
+            y: startPoint.y
+        };
+
+        return [
+            startPoint,
+            midPoint,
+            { x: midPoint.x, y: endPoint.y },
+            endPoint
+        ];
+    }
+
+    /**
+     * Draw arrow head at connection endpoint (editor style)
+     * @param {Object} endPoint - End point of connection
+     * @param {Object} previousPoint - Previous point for direction calculation
+     */
+    drawConnectionArrow(endPoint, previousPoint) {
+        if (!endPoint || !previousPoint) return;
+
+        const dx = endPoint.x - previousPoint.x;
+        const dy = endPoint.y - previousPoint.y;
+        const angle = Math.atan2(dy, dx);
+
+        // Arrow configuration (matching editor)
+        const arrowLength = 8;
+        const arrowAngle = Math.PI / 6; // 30 degrees
+
+        const x1 = endPoint.x - arrowLength * Math.cos(angle - arrowAngle);
+        const y1 = endPoint.y - arrowLength * Math.sin(angle - arrowAngle);
+        const x2 = endPoint.x - arrowLength * Math.cos(angle + arrowAngle);
+        const y2 = endPoint.y - arrowLength * Math.sin(angle + arrowAngle);
+
+        // Draw arrow head
+        this.ctx.beginPath();
+        this.ctx.moveTo(endPoint.x, endPoint.y);
+        this.ctx.lineTo(x1, y1);
+        this.ctx.moveTo(endPoint.x, endPoint.y);
+        this.ctx.lineTo(x2, y2);
         this.ctx.stroke();
     }
 
@@ -631,7 +1018,13 @@ class VisualPrototypeRenderer {
             this.constrainPanOffset();
 
             this.lastMousePos = { x, y };
-            this.render();
+
+            // Use throttled rendering for smooth panning
+            if (this.performanceMode) {
+                this.renderThrottled();
+            } else {
+                this.render();
+            }
         } else {
             // Handle hover for cursor feedback
             this.handleCanvasHover(event);
@@ -1055,5 +1448,92 @@ class VisualPrototypeRenderer {
         });
 
         this.render();
+    }
+
+    /**
+     * Get performance metrics
+     * @returns {Object} Performance information
+     */
+    getPerformanceInfo() {
+        const nodeCount = this.contractData ? this.contractData.nodes.size : 0;
+        const connectionCount = this.contractData ? this.contractData.getAllConnections().length : 0;
+
+        return {
+            nodeCount,
+            connectionCount,
+            performanceMode: this.performanceMode,
+            renderThrottleMs: this.renderThrottleMs,
+            viewportCulling: this.viewportCulling,
+            cacheSize: {
+                connections: this.connectionCache.size,
+                text: this.textRenderCache.size
+            },
+            estimatedComplexity: this.calculateRenderComplexity(nodeCount, connectionCount),
+            recommendations: this.getPerformanceRecommendations(nodeCount, connectionCount)
+        };
+    }
+
+    /**
+     * Calculate render complexity score
+     * @param {number} nodeCount - Number of nodes
+     * @param {number} connectionCount - Number of connections
+     * @returns {string} Complexity level
+     */
+    calculateRenderComplexity(nodeCount, connectionCount) {
+        const score = nodeCount + (connectionCount * 0.5);
+
+        if (score < 25) return 'Low';
+        if (score < 75) return 'Medium';
+        if (score < 150) return 'High';
+        return 'Very High';
+    }
+
+    /**
+     * Get performance recommendations
+     * @param {number} nodeCount - Number of nodes
+     * @param {number} connectionCount - Number of connections
+     * @returns {Array} Array of recommendation strings
+     */
+    getPerformanceRecommendations(nodeCount, connectionCount) {
+        const recommendations = [];
+
+        if (nodeCount > 100) {
+            recommendations.push('Consider splitting large contracts into smaller modules');
+        }
+
+        if (connectionCount > nodeCount * 2) {
+            recommendations.push('High connection density may impact performance');
+        }
+
+        if (!this.performanceMode && nodeCount > 50) {
+            recommendations.push('Enable performance mode for better rendering');
+        }
+
+        if (nodeCount > 200) {
+            recommendations.push('Consider using level-of-detail rendering for very large contracts');
+        }
+
+        return recommendations;
+    }
+
+    /**
+     * Enable or disable viewport culling
+     * @param {boolean} enabled - Whether to enable viewport culling
+     */
+    setViewportCulling(enabled) {
+        this.viewportCulling = enabled;
+        console.log(`Viewport culling ${enabled ? 'enabled' : 'disabled'}`);
+    }
+
+    /**
+     * Force performance mode on/off
+     * @param {boolean} enabled - Whether to enable performance mode
+     */
+    setPerformanceMode(enabled) {
+        if (enabled) {
+            this.enablePerformanceMode();
+        } else {
+            this.disablePerformanceMode();
+        }
     }
 }

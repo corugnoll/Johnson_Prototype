@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Final Validation - Johnson Contract Editor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+
+        .header p {
+            margin: 10px 0 0;
+            opacity: 0.8;
+            font-size: 1.1em;
+        }
+
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            padding: 30px;
+        }
+
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 25px;
+            border: 1px solid #e9ecef;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .test-section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .test-section h3 {
+            margin: 0 0 15px;
+            color: #2c3e50;
+            font-size: 1.4em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .test-icon {
+            font-size: 1.5em;
+        }
+
+        .test-results {
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.4;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+        }
+
+        .status {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 5px 0;
+            display: inline-block;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.95em;
+            font-weight: 500;
+            margin: 5px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .summary-section {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .summary-card {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        .summary-card h4 {
+            margin: 0 0 10px;
+            font-size: 2em;
+        }
+
+        .summary-card p {
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            transition: width 0.5s ease;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .loading {
+            animation: pulse 1.5s infinite;
+        }
+    </style>
+    <script src="Tools/node_modules/papaparse/papaparse.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Johnson Contract Editor</h1>
+            <p>Final Validation Suite - Phase 3 & 4 Implementation</p>
+        </div>
+
+        <div class="test-grid">
+            <!-- File Manager Tests -->
+            <div class="test-section">
+                <h3><span class="test-icon">📁</span>File Manager</h3>
+                <button onclick="runFileManagerTests()">Test File Operations</button>
+                <div id="fileManagerResults" class="test-results">Ready to test file manager operations...</div>
+            </div>
+
+            <!-- CSV Format Tests -->
+            <div class="test-section">
+                <h3><span class="test-icon">📊</span>CSV Format Support</h3>
+                <button onclick="runCSVFormatTests()">Test Format Support</button>
+                <div id="csvFormatResults" class="test-results">Ready to test CSV format compatibility...</div>
+            </div>
+
+            <!-- Position System Tests -->
+            <div class="test-section">
+                <h3><span class="test-icon">📍</span>Position System</h3>
+                <button onclick="runPositionTests()">Test X,Y Positioning</button>
+                <div id="positionResults" class="test-results">Ready to test positioning system...</div>
+            </div>
+
+            <!-- Integration Tests -->
+            <div class="test-section">
+                <h3><span class="test-icon">🔗</span>Integration</h3>
+                <button onclick="runIntegrationTests()">Test Editor-Game Integration</button>
+                <div id="integrationResults" class="test-results">Ready to test editor-game integration...</div>
+            </div>
+
+            <!-- Performance Tests -->
+            <div class="test-section">
+                <h3><span class="test-icon">⚡</span>Performance</h3>
+                <button onclick="runPerformanceTests()">Test Performance</button>
+                <div id="performanceResults" class="test-results">Ready to test performance optimizations...</div>
+            </div>
+
+            <!-- Error Handling Tests -->
+            <div class="test-section">
+                <h3><span class="test-icon">🛡️</span>Error Handling</h3>
+                <button onclick="runErrorHandlingTests()">Test Error Handling</button>
+                <div id="errorHandlingResults" class="test-results">Ready to test error handling...</div>
+            </div>
+
+            <!-- Validation Tests -->
+            <div class="test-section">
+                <h3><span class="test-icon">✅</span>Data Validation</h3>
+                <button onclick="runValidationTests()">Test Data Validation</button>
+                <div id="validationResults" class="test-results">Ready to test data validation...</div>
+            </div>
+
+            <!-- Compatibility Tests -->
+            <div class="test-section">
+                <h3><span class="test-icon">🔄</span>Compatibility</h3>
+                <button onclick="runCompatibilityTests()">Test Legacy Support</button>
+                <div id="compatibilityResults" class="test-results">Ready to test backward compatibility...</div>
+            </div>
+        </div>
+
+        <!-- Summary Section -->
+        <div class="summary-section">
+            <h2>Test Summary</h2>
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill" style="width: 0%;"></div>
+            </div>
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <h4 id="totalTests">0</h4>
+                    <p>Total Tests</p>
+                </div>
+                <div class="summary-card">
+                    <h4 id="passedTests">0</h4>
+                    <p>Passed</p>
+                </div>
+                <div class="summary-card">
+                    <h4 id="failedTests">0</h4>
+                    <p>Failed</p>
+                </div>
+                <div class="summary-card">
+                    <h4 id="overallScore">0%</h4>
+                    <p>Success Rate</p>
+                </div>
+            </div>
+            <button onclick="runAllTests()" style="margin-top: 20px; font-size: 1.1em; padding: 15px 30px;">
+                🚀 Run All Tests
+            </button>
+        </div>
+    </div>
+
+    <!-- Include required JavaScript modules -->
+    <script src="js/csvLoader.js"></script>
+    <script src="js/gameState.js"></script>
+    <script src="js/visualPrototype.js"></script>
+    <script src="js/editor/nodeManager.js"></script>
+    <script src="js/editor/fileManager.js"></script>
+
+    <script>
+        // Test tracking
+        let testResults = {
+            total: 0,
+            passed: 0,
+            failed: 0,
+            details: []
+        };
+
+        // Initialize test environment
+        let csvLoader, gameState, fileManager, mockNodeManager;
+
+        function initializeTestEnvironment() {
+            csvLoader = new CSVLoader();
+            gameState = new GameState();
+
+            // Create mock node manager for testing
+            mockNodeManager = {
+                getAllNodes: () => [],
+                calculateNodeDimensions: (node) => {
+                    node.width = 80;
+                    node.height = 60;
+                }
+            };
+
+            fileManager = new FileManager(mockNodeManager, null);
+        }
+
+        function updateStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function addTestResult(testName, passed, details) {
+            testResults.total++;
+            if (passed) {
+                testResults.passed++;
+            } else {
+                testResults.failed++;
+            }
+            testResults.details.push({ testName, passed, details });
+            updateSummary();
+        }
+
+        function updateSummary() {
+            document.getElementById('totalTests').textContent = testResults.total;
+            document.getElementById('passedTests').textContent = testResults.passed;
+            document.getElementById('failedTests').textContent = testResults.failed;
+
+            const successRate = testResults.total > 0 ? Math.round((testResults.passed / testResults.total) * 100) : 0;
+            document.getElementById('overallScore').textContent = successRate + '%';
+            document.getElementById('progressFill').style.width = successRate + '%';
+        }
+
+        async function runFileManagerTests() {
+            updateStatus('fileManagerResults', 'Running file manager tests...', 'info');
+
+            const tests = [];
+
+            // Test 1: CSV Generation
+            try {
+                const testNodes = [
+                    { id: 'TEST1', description: 'Test', x: 100, y: 200, connections: ['TEST2'], type: 'Normal', color: 'Red' }
+                ];
+                mockNodeManager.getAllNodes = () => testNodes;
+
+                const csvContent = fileManager.generateCSVContent(testNodes);
+                const hasHeaders = csvContent.includes('Node ID,Description');
+                const hasData = csvContent.includes('TEST1');
+
+                tests.push({ name: 'CSV Generation', passed: hasHeaders && hasData });
+            } catch (error) {
+                tests.push({ name: 'CSV Generation', passed: false, error: error.message });
+            }
+
+            // Test 2: Data Validation
+            try {
+                const validationSummary = fileManager.getValidationSummary();
+                const hasXYValidation = validationSummary.requiredColumns.includes('X') &&
+                                      validationSummary.requiredColumns.includes('Y');
+
+                tests.push({ name: 'Data Validation Rules', passed: hasXYValidation });
+            } catch (error) {
+                tests.push({ name: 'Data Validation Rules', passed: false, error: error.message });
+            }
+
+            // Test 3: Error Handling
+            try {
+                const emptyValidation = fileManager.validateExportData([]);
+                tests.push({ name: 'Empty Data Handling', passed: !emptyValidation.isValid });
+            } catch (error) {
+                tests.push({ name: 'Empty Data Handling', passed: false, error: error.message });
+            }
+
+            // Update results
+            const passed = tests.filter(t => t.passed).length;
+            const total = tests.length;
+
+            tests.forEach(test => addTestResult(`FileManager: ${test.name}`, test.passed, test.error || ''));
+
+            updateStatus('fileManagerResults',
+                `File Manager Tests: ${passed}/${total} passed\n\n` +
+                tests.map(t => `${t.passed ? '✓' : '✗'} ${t.name}${t.error ? ': ' + t.error : ''}`).join('\n'),
+                passed === total ? 'success' : passed > 0 ? 'warning' : 'error'
+            );
+        }
+
+        async function runCSVFormatTests() {
+            updateStatus('csvFormatResults', 'Testing CSV format support...', 'info');
+
+            const tests = [];
+
+            // Test 1: X,Y Format Detection
+            try {
+                const xyData = [{ 'Node ID': 'TEST1', 'X': '100', 'Y': '200', 'Description': 'Test', 'Connections': '' }];
+                const visualData = csvLoader.createVisualContractData(xyData);
+
+                tests.push({ name: 'X,Y Format Detection', passed: visualData.metadata.format === 'xy' });
+            } catch (error) {
+                tests.push({ name: 'X,Y Format Detection', passed: false, error: error.message });
+            }
+
+            // Test 2: Legacy Format Support
+            try {
+                const legacyData = [{ 'Node ID': 'TEST1', 'Layer': '0', 'Slot': 'CE', 'Description': 'Test', 'Connections': '' }];
+                const visualData = csvLoader.createVisualContractData(legacyData);
+
+                tests.push({ name: 'Legacy Format Support', passed: visualData.metadata.format === 'legacy' });
+            } catch (error) {
+                tests.push({ name: 'Legacy Format Support', passed: false, error: error.message });
+            }
+
+            // Test 3: Format Validation
+            try {
+                const mixedData = [{ 'Node ID': 'TEST1', 'X': '100', 'Y': '200', 'Layer': '0' }];
+                csvLoader.validateData(mixedData);
+
+                tests.push({ name: 'Mixed Format Validation', passed: true });
+            } catch (error) {
+                tests.push({ name: 'Mixed Format Validation', passed: false, error: error.message });
+            }
+
+            const passed = tests.filter(t => t.passed).length;
+            const total = tests.length;
+
+            tests.forEach(test => addTestResult(`CSV Format: ${test.name}`, test.passed, test.error || ''));
+
+            updateStatus('csvFormatResults',
+                `CSV Format Tests: ${passed}/${total} passed\n\n` +
+                tests.map(t => `${t.passed ? '✓' : '✗'} ${t.name}${t.error ? ': ' + t.error : ''}`).join('\n'),
+                passed === total ? 'success' : passed > 0 ? 'warning' : 'error'
+            );
+        }
+
+        async function runPositionTests() {
+            updateStatus('positionResults', 'Testing position system...', 'info');
+
+            const tests = [];
+
+            // Test coordinate parsing
+            const testData = [
+                { 'Node ID': 'POS1', 'X': '100.5', 'Y': '200.7', 'Description': 'Test', 'Connections': '' }
+            ];
+
+            try {
+                const processed = csvLoader.processDataForGame(testData);
+                const node = processed[0];
+
+                tests.push({ name: 'X Coordinate Parsing', passed: node.x === 100.5 });
+                tests.push({ name: 'Y Coordinate Parsing', passed: node.y === 200.7 });
+            } catch (error) {
+                tests.push({ name: 'Position Parsing', passed: false, error: error.message });
+            }
+
+            const passed = tests.filter(t => t.passed).length;
+            const total = tests.length;
+
+            tests.forEach(test => addTestResult(`Position: ${test.name}`, test.passed, test.error || ''));
+
+            updateStatus('positionResults',
+                `Position Tests: ${passed}/${total} passed\n\n` +
+                tests.map(t => `${t.passed ? '✓' : '✗'} ${t.name}${t.error ? ': ' + t.error : ''}`).join('\n'),
+                passed === total ? 'success' : passed > 0 ? 'warning' : 'error'
+            );
+        }
+
+        async function runIntegrationTests() {
+            updateStatus('integrationResults', 'Testing integration...', 'info');
+
+            const tests = [];
+
+            // Test game state integration
+            try {
+                const testData = [
+                    { id: 'INT1', x: 100, y: 200, description: 'Integration Test', connections: [] }
+                ];
+
+                gameState.setContractData(testData);
+                const hasData = gameState.contractData && gameState.contractData.length > 0;
+
+                tests.push({ name: 'Game State Integration', passed: hasData });
+            } catch (error) {
+                tests.push({ name: 'Game State Integration', passed: false, error: error.message });
+            }
+
+            const passed = tests.filter(t => t.passed).length;
+            const total = tests.length;
+
+            tests.forEach(test => addTestResult(`Integration: ${test.name}`, test.passed, test.error || ''));
+
+            updateStatus('integrationResults',
+                `Integration Tests: ${passed}/${total} passed\n\n` +
+                tests.map(t => `${t.passed ? '✓' : '✗'} ${t.name}${t.error ? ': ' + t.error : ''}`).join('\n'),
+                passed === total ? 'success' : passed > 0 ? 'warning' : 'error'
+            );
+        }
+
+        async function runPerformanceTests() {
+            updateStatus('performanceResults', 'Testing performance...', 'info');
+
+            const tests = [];
+
+            // Test large data processing
+            try {
+                const largeDataset = Array.from({ length: 100 }, (_, i) => ({
+                    'Node ID': `PERF${i}`,
+                    'X': String(i * 50),
+                    'Y': String(i * 30),
+                    'Description': `Performance Test Node ${i}`,
+                    'Connections': ''
+                }));
+
+                const startTime = performance.now();
+                csvLoader.processDataForGame(largeDataset);
+                const endTime = performance.now();
+
+                const processingTime = endTime - startTime;
+                tests.push({
+                    name: 'Large Dataset Processing',
+                    passed: processingTime < 100,
+                    details: `${processingTime.toFixed(2)}ms for 100 nodes`
+                });
+            } catch (error) {
+                tests.push({ name: 'Large Dataset Processing', passed: false, error: error.message });
+            }
+
+            const passed = tests.filter(t => t.passed).length;
+            const total = tests.length;
+
+            tests.forEach(test => addTestResult(`Performance: ${test.name}`, test.passed, test.details || test.error || ''));
+
+            updateStatus('performanceResults',
+                `Performance Tests: ${passed}/${total} passed\n\n` +
+                tests.map(t => `${t.passed ? '✓' : '✗'} ${t.name}${t.details ? ' (' + t.details + ')' : ''}${t.error ? ': ' + t.error : ''}`).join('\n'),
+                passed === total ? 'success' : passed > 0 ? 'warning' : 'error'
+            );
+        }
+
+        async function runErrorHandlingTests() {
+            updateStatus('errorHandlingResults', 'Testing error handling...', 'info');
+
+            const tests = [];
+
+            // Test invalid data handling
+            try {
+                const invalidData = [{ 'Node ID': '', 'X': 'invalid', 'Y': 'invalid' }];
+                csvLoader.validateData(invalidData);
+                tests.push({ name: 'Invalid Data Rejection', passed: false });
+            } catch (error) {
+                tests.push({ name: 'Invalid Data Rejection', passed: true });
+            }
+
+            const passed = tests.filter(t => t.passed).length;
+            const total = tests.length;
+
+            tests.forEach(test => addTestResult(`Error Handling: ${test.name}`, test.passed, test.error || ''));
+
+            updateStatus('errorHandlingResults',
+                `Error Handling Tests: ${passed}/${total} passed\n\n` +
+                tests.map(t => `${t.passed ? '✓' : '✗'} ${t.name}${t.error ? ': ' + t.error : ''}`).join('\n'),
+                passed === total ? 'success' : passed > 0 ? 'warning' : 'error'
+            );
+        }
+
+        async function runValidationTests() {
+            updateStatus('validationResults', 'Testing data validation...', 'info');
+
+            const tests = [];
+
+            // Test coordinate validation
+            try {
+                const validData = [{ 'Node ID': 'VAL1', 'X': '100', 'Y': '200', 'Description': 'Valid', 'Connections': '' }];
+                csvLoader.validateData(validData);
+                tests.push({ name: 'Valid Data Acceptance', passed: true });
+            } catch (error) {
+                tests.push({ name: 'Valid Data Acceptance', passed: false, error: error.message });
+            }
+
+            const passed = tests.filter(t => t.passed).length;
+            const total = tests.length;
+
+            tests.forEach(test => addTestResult(`Validation: ${test.name}`, test.passed, test.error || ''));
+
+            updateStatus('validationResults',
+                `Validation Tests: ${passed}/${total} passed\n\n` +
+                tests.map(t => `${t.passed ? '✓' : '✗'} ${t.name}${t.error ? ': ' + t.error : ''}`).join('\n'),
+                passed === total ? 'success' : passed > 0 ? 'warning' : 'error'
+            );
+        }
+
+        async function runCompatibilityTests() {
+            updateStatus('compatibilityResults', 'Testing compatibility...', 'info');
+
+            const tests = [];
+
+            // Test backward compatibility
+            try {
+                const legacyFormat = [{ 'Node ID': 'COMPAT1', 'Layer': '0', 'Slot': 'CE', 'Description': 'Legacy', 'Connections': '' }];
+                const processed = csvLoader.processDataForGame(legacyFormat);
+                const hasLayerSlot = processed[0].layer === 0 && processed[0].slot === 'CE';
+
+                tests.push({ name: 'Legacy Format Processing', passed: hasLayerSlot });
+            } catch (error) {
+                tests.push({ name: 'Legacy Format Processing', passed: false, error: error.message });
+            }
+
+            const passed = tests.filter(t => t.passed).length;
+            const total = tests.length;
+
+            tests.forEach(test => addTestResult(`Compatibility: ${test.name}`, test.passed, test.error || ''));
+
+            updateStatus('compatibilityResults',
+                `Compatibility Tests: ${passed}/${total} passed\n\n` +
+                tests.map(t => `${t.passed ? '✓' : '✗'} ${t.name}${t.error ? ': ' + t.error : ''}`).join('\n'),
+                passed === total ? 'success' : passed > 0 ? 'warning' : 'error'
+            );
+        }
+
+        async function runAllTests() {
+            // Reset test results
+            testResults = { total: 0, passed: 0, failed: 0, details: [] };
+            updateSummary();
+
+            // Run all test suites
+            const testSuites = [
+                runFileManagerTests,
+                runCSVFormatTests,
+                runPositionTests,
+                runIntegrationTests,
+                runPerformanceTests,
+                runErrorHandlingTests,
+                runValidationTests,
+                runCompatibilityTests
+            ];
+
+            for (const testSuite of testSuites) {
+                await testSuite();
+                await new Promise(resolve => setTimeout(resolve, 500)); // Brief pause between tests
+            }
+
+            // Final summary
+            const successRate = Math.round((testResults.passed / testResults.total) * 100);
+            console.log(`Final Test Results: ${testResults.passed}/${testResults.total} tests passed (${successRate}%)`);
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', initializeTestEnvironment);
+    </script>
+</body>
+</html>

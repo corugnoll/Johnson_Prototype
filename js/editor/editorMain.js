@@ -8,6 +8,7 @@ class EditorMain {
         this.canvas = null;
         this.nodeManager = null;
         this.connectionManager = null;
+        this.fileManager = null;
         this.isDragging = false;
         this.dragNode = null;
         this.dragOffset = { x: 0, y: 0 };
@@ -57,6 +58,9 @@ class EditorMain {
 
         // Initialize connection manager
         this.connectionManager = new ConnectionManager(this.nodeManager, this.canvas);
+
+        // Initialize file manager
+        this.fileManager = new FileManager(this.nodeManager, this.connectionManager);
 
         // Connect components
         this.nodeManager.setConnectionManager(this.connectionManager);
@@ -406,123 +410,49 @@ class EditorMain {
     /**
      * Handle file selection for opening contracts
      */
-    handleFileSelect(event) {
+    async handleFileSelect(event) {
         const file = event.target.files[0];
         if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                this.loadContractFromCSV(e.target.result);
-            } catch (error) {
-                console.error('Failed to load contract:', error);
-                this.showMessage('Failed to load contract file', 'error');
+        try {
+            const success = await this.fileManager.importContract(file);
+            if (success) {
+                // Auto-zoom to fit imported nodes
+                this.zoomToFit();
+                // Update UI state
+                this.updateToolbarState();
             }
-        };
-        reader.readAsText(file);
+        } catch (error) {
+            console.error('Failed to import contract:', error);
+            this.showMessage('Failed to import contract file', 'error');
+        }
+
+        // Clear file input to allow re-importing the same file
+        event.target.value = '';
     }
 
     /**
-     * Load contract from CSV content
+     * Load contract from CSV content (deprecated - now handled by FileManager)
+     * @deprecated Use FileManager.importContract() instead
      */
     loadContractFromCSV(csvContent) {
-        // Parse CSV using Papa Parse
-        const results = Papa.parse(csvContent, {
-            header: true,
-            skipEmptyLines: true
-        });
-
-        if (results.errors.length > 0) {
-            console.error('CSV parsing errors:', results.errors);
-            this.showMessage('CSV parsing failed', 'error');
-            return;
-        }
-
-        // Convert CSV data to node objects
-        const nodes = results.data.map(row => {
-            return {
-                id: row['Node ID'] || '',
-                description: row['Description'] || '',
-                effectDesc: row['Effect Desc'] || '',
-                effect1: row['Effect 1'] || '',
-                effect2: row['Effect 2'] || '',
-                type: row['Type'] || 'Normal',
-                color: row['Color'] || 'Grey',
-                x: parseFloat(row['X']) || 0,
-                y: parseFloat(row['Y']) || 0,
-                connections: row['Connections'] ? row['Connections'].split(',').map(s => s.trim()) : [],
-                selected: false,
-                width: 80,
-                height: 60
-            };
-        });
-
-        // Validate and load nodes
-        const validNodes = nodes.filter(node => {
-            const errors = this.nodeManager.validateNode(node);
-            if (errors.length > 0) {
-                console.warn('Invalid node data:', node, errors);
-                return false;
-            }
-            return true;
-        });
-
-        // Calculate dimensions for all nodes
-        validNodes.forEach(node => {
-            this.nodeManager.calculateNodeDimensions(node);
-        });
-
-        // Set the nodes
-        this.nodeManager.setAllNodes(validNodes);
-
-        // Build connections automatically
-        if (this.connectionManager) {
-            this.connectionManager.buildAllConnections();
-        }
-
-        // Zoom to fit
-        this.zoomToFit();
-
-        const connectionCount = this.connectionManager ? this.connectionManager.getAllConnections().length : 0;
-        this.showMessage(`Loaded ${validNodes.length} nodes and ${connectionCount} connections`, 'success');
+        console.warn('loadContractFromCSV is deprecated. Use FileManager.importContract() instead.');
+        // This method is kept for backward compatibility but should not be used
     }
 
     /**
      * Save the current contract
      */
-    saveContract() {
-        const nodes = this.nodeManager.getAllNodes();
-        if (nodes.length === 0) {
-            this.showMessage('No nodes to save', 'warning');
-            return;
+    async saveContract() {
+        try {
+            const success = await this.fileManager.exportContract();
+            if (!success) {
+                console.error('Export failed through FileManager');
+            }
+        } catch (error) {
+            console.error('Failed to save contract:', error);
+            this.showMessage('Failed to save contract', 'error');
         }
-
-        // Generate CSV content
-        const csvData = nodes.map(node => ({
-            'Node ID': node.id,
-            'Description': node.description,
-            'Effect Desc': node.effectDesc,
-            'Effect 1': node.effect1 || '',
-            'Effect 2': node.effect2 || '',
-            'Type': node.type,
-            'Color': node.color,
-            'X': node.x,
-            'Y': node.y,
-            'Connections': node.connections.join(',')
-        }));
-
-        const csv = Papa.unparse(csvData);
-
-        // Download the file
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'contract.csv';
-        a.click();
-        window.URL.revokeObjectURL(url);
-
-        this.showMessage('Contract saved', 'success');
     }
 
     /**

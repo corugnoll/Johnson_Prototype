@@ -21,6 +21,10 @@ class VisualNode {
         this.x = parseFloat(csvRow['X']) || 0;
         this.y = parseFloat(csvRow['Y']) || 0;
 
+        // Dimension properties (width/height from editor)
+        this.width = parseFloat(csvRow['Width']) || null;
+        this.height = parseFloat(csvRow['Height']) || null;
+
         // Legacy layer/slot support for backward compatibility (will be ignored in new format)
         this.layer = parseInt(csvRow['Layer']) || 0;
         this.slot = csvRow['Slot'] || '';

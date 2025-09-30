@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Clipping Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: white;
+        }
+
+        #testCanvas {
+            border: 1px solid #444;
+            background-color: #2a2a2a;
+            display: block;
+            margin: 20px auto;
+        }
+
+        .test-info {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #333;
+            border-radius: 5px;
+        }
+
+        .test-results {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #2a4a2a;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-info">
+        <h2>Text Clipping Test</h2>
+        <p>This test creates several nodes with varying text lengths to verify that the height calculation fix prevents text clipping.</p>
+        <p><strong>Expected:</strong> All text should be fully visible within node boundaries without any clipping at the bottom.</p>
+    </div>
+
+    <canvas id="testCanvas" width="1000" height="600"></canvas>
+
+    <div class="test-results" id="testResults">
+        <h3>Test Results</h3>
+        <p>Loading test...</p>
+    </div>
+
+    <script src="js/contractData.js"></script>
+    <script src="js/visualPrototype.js"></script>
+    <script>
+        // Test data with various text lengths that previously caused clipping
+        const testNodes = [
+            {
+                id: 'test1',
+                description: 'Short text',
+                effectDescription: 'Brief effect',
+                color: 'Red',
+                type: 'Regular',
+                x: 150,
+                y: 100,
+                state: 'available'
+            },
+            {
+                id: 'test2',
+                description: 'Combo Money Lets try this with a longer string',
+                effectDescription: 'This is a longer effect description that should wrap properly',
+                color: 'Blue',
+                type: 'Regular',
+                x: 400,
+                y: 100,
+                state: 'available'
+            },
+            {
+                id: 'test3',
+                description: 'Hacker Veil, you fight your way through the kitchen',
+                effectDescription: 'Another multi-line effect description that tests wrapping and height calculation',
+                color: 'Green',
+                type: 'Regular',
+                x: 650,
+                y: 100,
+                state: 'selected'
+            },
+            {
+                id: 'test4',
+                description: 'Very long description text that should definitely wrap to multiple lines and test the height calculation thoroughly',
+                effectDescription: 'Very long effect description that also wraps to multiple lines to ensure both sections are properly sized',
+                color: 'Yellow',
+                type: 'Regular',
+                x: 150,
+                y: 350,
+                state: 'available'
+            },
+            {
+                id: 'test5',
+                description: 'Line break test\nSecond line\nThird line',
+                effectDescription: 'Effect with\nLine breaks\nThird effect line',
+                color: 'Purple',
+                type: 'Regular',
+                x: 650,
+                y: 350,
+                state: 'available'
+            }
+        ];
+
+        // Create test contract data
+        class TestContractData {
+            constructor(nodes) {
+                this.nodes = new Map();
+                this.layers = new Map();
+                this.metadata = {
+                    nodeCount: nodes.length,
+                    connectionCount: 0
+                };
+
+                nodes.forEach(node => {
+                    this.nodes.set(node.id, node);
+                });
+            }
+
+            getAllConnections() {
+                return []; // No connections for this test
+            }
+        }
+
+        // Initialize the test
+        function runTest() {
+            const canvas = document.getElementById('testCanvas');
+            const renderer = new VisualPrototypeRenderer(canvas);
+            const contractData = new TestContractData(testNodes);
+
+            // Load the test data
+            renderer.loadContract(contractData);
+
+            // Check results
+            const results = document.getElementById('testResults');
+            let testsPassed = 0;
+            let totalTests = testNodes.length;
+
+            results.innerHTML = `
+                <h3>Test Results</h3>
+                <p><strong>Nodes Created:</strong> ${totalTests}</p>
+                <p><strong>Test Objective:</strong> Verify that all text fits within calculated node boundaries</p>
+                <p><strong>Status:</strong> Visual inspection required - check that no text is clipped at the bottom of any node</p>
+                <p><strong>Key Test Cases:</strong></p>
+                <ul>
+                    <li>Short text (should have minimum sizing)</li>
+                    <li>Long single-line text (should wrap properly)</li>
+                    <li>Medium text with effect (should have separator space)</li>
+                    <li>Very long text (should wrap extensively)</li>
+                    <li>Text with line breaks (should handle explicit breaks)</li>
+                </ul>
+                <p><strong>Success Criteria:</strong> All text is fully visible with comfortable padding above and below</p>
+            `;
+        }
+
+        // Run the test when page loads
+        window.addEventListener('load', runTest);
+    </script>
+</body>
+</html>

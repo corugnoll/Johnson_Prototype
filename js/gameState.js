@@ -53,20 +53,38 @@ class GameState {
      */
     setContractData(contractData) {
         try {
-            this.contractData = contractData.map(node => ({
-                id: node['Node ID'],
-                description: node['Description'],
-                effectDescription: node['Effect Desc'],
-                effect1: node['Effect 1'],
-                effect2: node['Effect 2'],
-                type: node['Type'],
-                color: node['Color'],
-                layer: parseInt(node['Layer']) || 0,
-                slot: node['Slot'],
-                connections: this.parseConnections(node['Connections']),
-                selected: false,
-                available: this.shouldBeInitiallyAvailable(node)
-            }));
+            this.contractData = contractData.map(node => {
+                const baseNode = {
+                    id: node['Node ID'] || node.id,
+                    description: node['Description'] || node.description,
+                    effectDescription: node['Effect Desc'] || node.effectDescription,
+                    effect1: node['Effect 1'] || node.effect1,
+                    effect2: node['Effect 2'] || node.effect2,
+                    type: node['Type'] || node.type,
+                    color: node['Color'] || node.color,
+                    connections: this.parseConnections(node['Connections'] || node.connections),
+                    selected: false,
+                    available: this.shouldBeInitiallyAvailable(node)
+                };
+
+                // Handle both X,Y format and legacy Layer/Slot format
+                if (typeof node.x === 'number' && typeof node.y === 'number') {
+                    // New X,Y positioning format
+                    baseNode.x = node.x;
+                    baseNode.y = node.y;
+                    baseNode.layer = node.layer || 0; // Keep for backward compatibility
+                    baseNode.slot = node.slot || '';
+                } else {
+                    // Legacy Layer/Slot format
+                    baseNode.layer = parseInt(node['Layer'] || node.layer) || 0;
+                    baseNode.slot = node['Slot'] || node.slot || '';
+                    // X,Y will be calculated by layout algorithm
+                    baseNode.x = 0;
+                    baseNode.y = 0;
+                }
+
+                return baseNode;
+            });
 
             this.selectedNodes = [];
 
@@ -85,14 +103,30 @@ class GameState {
 
     /**
      * Parse connection string into array
-     * @param {string} connections - Connection string from CSV
+     * @param {string|Array} connections - Connection string from CSV or array from editor
      * @returns {Array} Array of connected node IDs
      */
     parseConnections(connections) {
-        if (!connections || connections.trim() === '') {
+        if (!connections) {
             return [];
         }
-        return connections.split(';').map(c => c.trim()).filter(c => c !== '');
+
+        // Handle array format (from editor)
+        if (Array.isArray(connections)) {
+            return connections.filter(c => c && c.trim() !== '');
+        }
+
+        // Handle string format (from CSV)
+        if (typeof connections === 'string') {
+            if (connections.trim() === '') {
+                return [];
+            }
+            // Support both comma and semicolon separators
+            const separator = connections.includes(',') ? ',' : ';';
+            return connections.split(separator).map(c => c.trim()).filter(c => c !== '');
+        }
+
+        return [];
     }
 
     /**

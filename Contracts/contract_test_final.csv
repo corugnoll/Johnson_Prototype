@@ -1,0 +1,14 @@
+"Node ID","Description","Effect Desc","Effect 1","Effect 2","Type","Color","X","Y","Width","Height","Connections"
+"NODE001","This is a Test","Node effect description
+for more info","None;+;1;Damage","","Normal","Red","600.0","405.0","134.5","64.0","NODE002,NODE003"
+"NODE002","This has some more text now to text that aswell","Node effect description
+yhello yes its a test","None;+;1;Damage","","Normal","Yellow","810.0","345.0","194.8","80.0","NODE004"
+"NODE003","New Node","Node effect description","None;+;1;Damage","","Normal","Purple","795.0","465.0","134.5","60.0","NODE005"
+"NODE004","This uses
+many more
+lines 
+and then some.","Node effect description
+another lione
+another line
+yes","None;+;1;Damage","","Normal","Blue","1050.0","315.0","134.5","144.0",""
+"NODE005","New Node","Node effect description","None;+;1;Damage","","Normal","Grey","1005.0","495.0","134.5","60.0",""

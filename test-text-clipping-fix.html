@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Clipping Fix Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        #gameBoard {
+            width: 800px;
+            height: 600px;
+            border: 2px solid #333;
+            background-color: #2a2a2a;
+            margin: 20px auto;
+        }
+
+        #testInfo {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        #loadStatus {
+            text-align: center;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #333;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="testInfo">
+        <h1>Text Clipping Fix Test</h1>
+        <p>Testing longer strings: "Combo Money Lets try this with a longer string" and "Hacker Veil you fight your way through the kitchen"</p>
+        <p>If the fix works, text should be contained within node boundaries.</p>
+    </div>
+
+    <canvas id="gameBoard" width="800" height="600"></canvas>
+
+    <div id="loadStatus">Loading test contract...</div>
+
+    <!-- Include dependencies -->
+    <script src="Tools/node_modules/papaparse/papaparse.min.js"></script>
+
+    <!-- Include game modules -->
+    <script src="js/csvLoader.js"></script>
+    <script src="js/visualPrototype.js"></script>
+
+    <script>
+        // Test script to verify text clipping fix
+        document.addEventListener('DOMContentLoaded', async function() {
+            const canvas = document.getElementById('gameBoard');
+            const statusDiv = document.getElementById('loadStatus');
+
+            try {
+                // Initialize the visual prototype renderer
+                const renderer = new VisualPrototypeRenderer(canvas);
+
+                statusDiv.textContent = 'Initializing renderer...';
+
+                // Load the test contract with longer strings
+                const csvLoader = new CSVLoader();
+                statusDiv.textContent = 'Loading test contract...';
+
+                const contractData = await csvLoader.loadFromFile('Contracts/test-long-strings.csv');
+
+                statusDiv.textContent = 'Rendering test contract...';
+
+                // Load and render the contract
+                renderer.loadContract(contractData);
+
+                statusDiv.innerHTML = `
+                    <strong>Test Complete!</strong><br>
+                    Contract loaded with ${contractData.metadata.nodeCount} nodes.<br>
+                    <span style="color: #4CAF50;">✓ Check if longer text strings are properly contained within node boundaries.</span><br>
+                    <span style="color: #2196F3;">ℹ Look for nodes with descriptions starting with "Combo Money" and "Hacker Veil"</span>
+                `;
+
+                console.log('Test contract loaded successfully');
+                console.log('Nodes:', Array.from(contractData.nodes.values()).map(n => ({ id: n.id, desc: n.description })));
+
+            } catch (error) {
+                console.error('Test failed:', error);
+                statusDiv.innerHTML = `<span style="color: #f44336;">❌ Test failed: ${error.message}</span>`;
+            }
+        });
+    </script>
+</body>
+</html>
