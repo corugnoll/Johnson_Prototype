@@ -1,0 +1,13 @@
+"Node ID","Description","Effect Desc","Effect 1","Effect 2","Type","Color","X","Y","Width","Height","Connections"
+"NODE006","Hello yes nice","gibt mir 40 vweil yo","None;+;40;Veil","","Normal","Red","840.0","360.0","114.0","60.0","NODE007,NODE008"
+"NODE007","Very nuice","Node effect description","None;+;40;Veil","","Normal","Yellow","1095.0","225.0","134.5","60.0","NODE010"
+"NODE008","ok","Node effect description
+teste
+etset
+est
+estes
+t
+","None;+;40;Veil","","Normal","Green","1095.0","435.0","134.5","144.0","NODE009"
+"NODE009","Yes","Node effect description","None;+;40;Veil","","Gate","Blue","1350.0","375.0","134.5","60.0",""
+"NODE010","New Node","Node effect description","","","Normal","Purple","1350.0","195.0","134.5","60.0",""
+"NODE011","Synergy node","Node effect description","None;+;40;Veil","","Synergy","Grey","1065.0","120.0","134.5","60.0",""
