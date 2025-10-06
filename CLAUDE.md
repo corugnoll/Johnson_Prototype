@@ -49,7 +49,7 @@ No build process required - open index.html directly in modern browsers (2020+).
 
 ### Canvas Rendering System
 - Use Canvas API for node visualization and connection lines
-- Support 6 node colors: Red (#FF6467), Yellow (#FFDF20), Green (#FFDF20), Blue (#51A2FF), Purple (#51A2FF), Grey (#51A2FF)
+- Support 6 node colors: Red (#F87C63), Yellow (#F4D10B), Green (#88C987), Blue (#51A2FF), Purple (#8B5CF6), Grey (#666666)
 - Three node states: Available (normal), Selected (outlined), Unavailable (desaturated)
 - Layer/Slot positioning system for organized node layout
 

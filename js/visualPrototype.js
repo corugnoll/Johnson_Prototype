@@ -48,9 +48,9 @@ class VisualPrototypeRenderer {
 
         // Node colors with exact hex values from specification
         this.nodeColors = {
-            'Red': '#FF6467',
-            'Yellow': '#FFDF20',
-            'Green': '#4ADE80',
+            'Red': '#F87C63',
+            'Yellow': '#F4D10B',
+            'Green': '#88C987',
             'Blue': '#51A2FF',
             'Purple': '#8B5CF6',
             'Grey': '#666666'
@@ -701,12 +701,7 @@ class VisualPrototypeRenderer {
     renderSynergyNode(node, pos) {
         const color = this.nodeColors[node.color] || '#CCCCCC';
 
-        // Special synergy node styling - diamond shape with glow effect
-        const centerX = pos.x + pos.width / 2;
-        const centerY = pos.y + pos.height / 2;
-        const halfWidth = pos.width / 2;
-        const halfHeight = pos.height / 2;
-
+        // Special synergy node styling - rectangle shape with glow effect
         // Draw glow effect for synergy nodes
         if (node.state === 'selected') {
             this.ctx.shadowColor = '#FFDF20';
@@ -716,19 +711,11 @@ class VisualPrototypeRenderer {
             this.ctx.shadowBlur = 5;
         }
 
-        // Draw diamond shape
-        this.ctx.beginPath();
-        this.ctx.moveTo(centerX, pos.y);           // Top
-        this.ctx.lineTo(pos.x + pos.width, centerY); // Right
-        this.ctx.lineTo(centerX, pos.y + pos.height); // Bottom
-        this.ctx.lineTo(pos.x, centerY);           // Left
-        this.ctx.closePath();
-
-        // Fill diamond
+        // Draw rectangle background
         this.ctx.fillStyle = node.state === 'unavailable' ? this.desaturateColor(color) : color;
-        this.ctx.fill();
+        this.ctx.fillRect(pos.x, pos.y, pos.width, pos.height);
 
-        // Stroke diamond with special border
+        // Draw rectangle border with special styling
         if (node.state === 'selected') {
             this.ctx.strokeStyle = '#FFDF20';
             this.ctx.lineWidth = 4;
@@ -739,42 +726,13 @@ class VisualPrototypeRenderer {
             this.ctx.strokeStyle = '#FFFFFF';
             this.ctx.lineWidth = 2;
         }
-        this.ctx.stroke();
+        this.ctx.strokeRect(pos.x, pos.y, pos.width, pos.height);
 
         // Reset shadow
         this.ctx.shadowBlur = 0;
 
-        // Render text with special styling for synergy nodes
-        this.renderSynergyNodeText(node, pos);
-    }
-
-    /**
-     * Render synergy node text with special styling
-     * @param {VisualNode} node - Synergy node to render text for
-     * @param {Object} pos - Node position and dimensions
-     */
-    renderSynergyNodeText(node, pos) {
-        const centerX = pos.x + pos.width / 2;
-        const centerY = pos.y + pos.height / 2;
-
-        // Synergy nodes get a more compact text display
-        const descriptionText = this.truncateText(node.description || '', pos.width * 0.8, 16);
-        const effectText = this.truncateText(node.effectDescription || '', pos.width * 0.8, 14);
-
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-
-        // Render description with bold white text
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = 'bold 16px Arial';
-        this.ctx.fillText(descriptionText, centerX, centerY - 12);
-
-        // Render effect text slightly below with smaller font
-        if (effectText && effectText.trim() !== '') {
-            this.ctx.fillStyle = '#E0E0E0';
-            this.ctx.font = '12px Arial';
-            this.ctx.fillText(effectText, centerX, centerY + 12);
-        }
+        // Render enhanced text like regular nodes (not truncated)
+        this.renderEnhancedNodeText(node, pos);
     }
 
 
