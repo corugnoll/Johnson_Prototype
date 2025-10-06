@@ -6,7 +6,7 @@ Entrance Area","+2 Grit","None;+;2;Grit","","Normal","Red","240.0","375.0","103.
 "NODE003","Gain Mainframe Access
 and disable security","+1 Grit","None;+;1;Grit","","Normal","Blue","135.0","210.0","160.6","64.0","","NODE004"
 "NODE004","Search for AI Core Location
-in Room Database","Node effect description","None;+;1;Grit","","Normal","Blue","450.0","210.0","184.8","64.0","","NODE022"
+in Room Database","Node effect description","None;+;1;Grit","","Normal","Blue","420.0","210.0","184.8","64.0","","NODE022"
 "NODE005","Sneak Into Core Room","+2 Veil","None;+;2;Veil","","Normal","Purple","915.0","225.0","154.4","60.0","","NODE012"
 "NODE006","Distract Patrols,
 then slip past","+2 Veil","None;+;2;Veil","","Normal","Purple","240.0","480.0","110.8","64.0","","NODE008"
@@ -40,8 +40,10 @@ Security Drones","+1 Grit and +1 Veil for each 5 Hacker Stat","RunnerStat:hacker
 "NODE021","","≥ Face","","","Gate","Yellow","630.0","480.0","80.0","60.0","RunnerType:face;1","NODE010"
 "NODE022","","≥1 Ninja","","","Gate","Purple","735.0","210.0","80.0","60.0","RunnerType:ninja;1","NODE005"
 "NODE023","Versatile Approach","For Every Color Node Chosen:
-+10% Reward","","","Synergy","Green","90.0","0.0","176.1","64.0","",""
++10% Reward","ColorForEach;%;10;Money","","Synergy","Green","90.0","0.0","176.1","64.0","",""
 "NODE024","Tech Savvy","For every Blue Node Chosen: 
 +10% Reward","NodeColor:Blue;%;10;Money","","Synergy","Green","315.0","0.0","173.4","64.0","",""
-"NODE025","Risk Averse","tbd","","","Synergy","Green","540.0","0.0","86.4","60.0","",""
-"NODE026","Money test node","Node effect description","None;+;200;Money","","Synergy","Purple","705.0","-15.0","134.5","60.0","",""
+"NODE025","Risk Averse","For each pair of Damage and Risk prevented:
++15% Reward","RiskDamPair;%;15;Money","","Synergy","Green","540.0","0.0","194.8","80.0","",""
+"NODE026","Money test node","Node effect description","None;+;200;Money","","Synergy","Purple","810.0","0.0","134.5","60.0","",""
+"NODE027","Money test node 2","Money 2","None;+;100;Money","","Normal","Red","795.0","-135.0","127.2","60.0","",""

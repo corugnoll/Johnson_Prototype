@@ -1,0 +1,303 @@
+===============================================================================
+                    NEW CONDITIONS: WORKED EXAMPLES
+                       RiskDamPair & ColorForEach
+===============================================================================
+
+This document shows step-by-step calculations for the new condition types.
+
+===============================================================================
+EXAMPLE 1: RiskDamPair - Balanced Prevention
+===============================================================================
+
+Setup:
+------
+Selected Nodes:
+  - Node A: None;+;10;Damage
+  - Node B: None;+;12;Risk
+  - Node C: None;+;8;Grit
+  - Node D: None;+;10;Veil
+  - Synergy: RiskDamPair;+;15;Money
+
+Calculation:
+-----------
+Step 1: Calculate base stats
+  Damage = 10
+  Risk = 12
+  Grit = 8
+  Veil = 10
+
+Step 2: Calculate prevention
+  Damage Prevention = floor(Grit / 2) = floor(8 / 2) = 4
+  Risk Prevention = floor(Veil / 2) = floor(10 / 2) = 5
+
+Step 3: Calculate pairs
+  Pairs = min(Damage Prevention, Risk Prevention)
+  Pairs = min(4, 5) = 4
+
+Step 4: Apply effect
+  Effect: RiskDamPair;+;15;Money
+  Money gained = 4 pairs × 15 = 60
+
+Final Result:
+------------
+Money = 60
+
+===============================================================================
+EXAMPLE 2: RiskDamPair - Damage Limited
+===============================================================================
+
+Setup:
+------
+Selected Nodes:
+  - Node A: None;+;6;Grit (low Grit)
+  - Node B: None;+;20;Veil (high Veil)
+  - Synergy: RiskDamPair;+;10;Money
+
+Calculation:
+-----------
+Step 1: Calculate prevention
+  Damage Prevention = floor(6 / 2) = 3
+  Risk Prevention = floor(20 / 2) = 10
+
+Step 2: Calculate pairs
+  Pairs = min(3, 10) = 3 (limited by damage prevention!)
+
+Step 3: Apply effect
+  Money gained = 3 × 10 = 30
+
+Final Result:
+------------
+Money = 30
+
+Key Insight: Even with 10 risk prevented, only 3 pairs count because
+             damage prevention is the limiting factor.
+
+===============================================================================
+EXAMPLE 3: RiskDamPair - Percentage Effect
+===============================================================================
+
+Setup:
+------
+Selected Nodes:
+  - Node A: None;+;5;Damage
+  - Node B: None;+;10;Grit
+  - Node C: None;+;8;Veil
+  - Synergy: RiskDamPair;%;20;Damage (percentage!)
+
+Calculation:
+-----------
+Step 1: Calculate base damage
+  Damage = 5 (from standard effects)
+
+Step 2: Calculate prevention
+  Damage Prevention = floor(10 / 2) = 5
+  Risk Prevention = floor(8 / 2) = 4
+
+Step 3: Calculate pairs
+  Pairs = min(5, 4) = 4
+
+Step 4: Apply percentage effect
+  Percentage boost = 4 pairs × 20% = 80%
+  Final Damage = 5 + (5 × 0.80) = 5 + 4 = 9
+
+Final Result:
+------------
+Damage = 9
+
+===============================================================================
+EXAMPLE 4: ColorForEach - Rainbow Selection
+===============================================================================
+
+Setup:
+------
+Selected Nodes:
+  - Node 1: Red (Standard)
+  - Node 2: Red (Standard)
+  - Node 3: Blue (Standard)
+  - Node 4: Green (Standard)
+  - Node 5: Yellow (Standard)
+  - Synergy: ColorForEach;+;8;Money
+
+Calculation:
+-----------
+Step 1: Collect all colors from selected nodes
+  Node 1: Red
+  Node 2: Red (duplicate, already have Red)
+  Node 3: Blue
+  Node 4: Green
+  Node 5: Yellow
+  Synergy: (doesn't count itself for this effect)
+
+Step 2: Count unique colors
+  Unique colors = {Red, Blue, Green, Yellow}
+  Count = 4
+
+Step 3: Apply effect
+  Money gained = 4 colors × 8 = 32
+
+Final Result:
+------------
+Money = 32
+
+===============================================================================
+EXAMPLE 5: ColorForEach - All Six Colors
+===============================================================================
+
+Setup:
+------
+Selected Nodes:
+  - Red node: None;+;10;Damage
+  - Blue node: (no effect)
+  - Green node: (no effect)
+  - Yellow node: (no effect)
+  - Purple node: (no effect)
+  - Grey node: (no effect)
+  - Synergy: ColorForEach;%;10;Damage
+
+Calculation:
+-----------
+Step 1: Calculate base damage
+  Damage = 10 (from Red node)
+
+Step 2: Count unique colors
+  Colors = {Red, Blue, Green, Yellow, Purple, Grey}
+  Count = 6
+
+Step 3: Apply percentage effect
+  Percentage boost = 6 colors × 10% = 60%
+  Final Damage = 10 + (10 × 0.60) = 10 + 6 = 16
+
+Final Result:
+------------
+Damage = 16
+
+===============================================================================
+EXAMPLE 6: ColorForEach - Gate Node Exclusion
+===============================================================================
+
+Setup:
+------
+Selected Nodes:
+  - Node 1: Red (Standard)
+  - Node 2: Red (Standard)
+  - Node 3: Red (Gate) ← This is a Gate node!
+  - Node 4: Blue (Standard)
+  - Synergy: ColorForEach;+;10;Money
+
+Calculation:
+-----------
+Step 1: Collect colors (excluding Gate nodes)
+  Node 1: Red (Standard) ✓ Include
+  Node 2: Red (Standard) ✓ Include (duplicate)
+  Node 3: Red (Gate) ✗ EXCLUDE (Gate type)
+  Node 4: Blue (Standard) ✓ Include
+  Synergy: (doesn't count itself)
+
+Step 2: Count unique colors
+  Unique colors = {Red, Blue}
+  Count = 2 (Gate node excluded!)
+
+Step 3: Apply effect
+  Money gained = 2 colors × 10 = 20
+
+Final Result:
+------------
+Money = 20
+
+Key Insight: Even though 3 nodes are Red, the Gate node doesn't count
+             toward color diversity.
+
+===============================================================================
+EXAMPLE 7: Combined Effects
+===============================================================================
+
+Setup:
+------
+Selected Nodes:
+  - Node A: None;+;10;Damage (Red)
+  - Node B: None;+;12;Grit (Blue)
+  - Node C: None;+;14;Veil (Green)
+  - Synergy 1: RiskDamPair;+;10;Money (Yellow)
+  - Synergy 2: ColorForEach;%;10;Damage (Purple)
+
+Calculation:
+-----------
+Step 1: Base stats
+  Damage = 10
+  Grit = 12
+  Veil = 14
+
+Step 2: RiskDamPair effect
+  Damage Prevention = floor(12 / 2) = 6
+  Risk Prevention = floor(14 / 2) = 7
+  Pairs = min(6, 7) = 6
+  Money from RiskDamPair = 6 × 10 = 60
+
+Step 3: ColorForEach effect
+  Colors = {Red, Blue, Green, Yellow, Purple}
+  Count = 5
+  Damage boost = 5 × 10% = 50%
+  Final Damage = 10 + (10 × 0.50) = 15
+
+Final Result:
+------------
+Damage = 15
+Money = 60
+
+===============================================================================
+COMPARISON: Old vs New Conditions
+===============================================================================
+
+Scenario: You have 6 Grit and 8 Veil
+         Base stats: 20 Damage, 15 Risk, 100 Money
+
+OLD CONDITIONS:
+--------------
+PrevDam;+;5;Money
+  → Damage prevented = 3
+  → Money gained = 3 × 5 = 15
+  → Total Money = 115
+
+PrevRisk;+;5;Money
+  → Risk prevented = 4
+  → Money gained = 4 × 5 = 20
+  → Total Money = 120
+
+Both effects together = 115 + 20 = 135 Money
+
+NEW CONDITION:
+-------------
+RiskDamPair;+;10;Money
+  → Pairs = min(3, 4) = 3
+  → Money gained = 3 × 10 = 30
+  → Total Money = 130
+
+Analysis: RiskDamPair is slightly less than using both PrevDam and PrevRisk,
+          but uses only ONE effect slot instead of two!
+
+===============================================================================
+DESIGN INSIGHTS
+===============================================================================
+
+RiskDamPair Use Cases:
+---------------------
+1. Synergy nodes that reward balanced defense
+2. "Tank build" enablers that need both Grit and Veil
+3. Efficient use of single effect slot for prevention bonus
+4. Creates tension: specialize in one prevention or balance both?
+
+ColorForEach Use Cases:
+----------------------
+1. Rainbow/diversity build rewards
+2. Synergy nodes at tree endpoints
+3. Anti-monochrome strategies
+4. Creates tension: stack one color or spread across many?
+
+Common Patterns:
+---------------
+- RiskDamPair works best with multiplicative operator (*)
+- ColorForEach works well with percentage operator (%)
+- Both reward strategic planning over random selection
+- Both create interesting build diversity
+
+===============================================================================

@@ -1,0 +1,150 @@
+===============================================================================
+                        QUICK REFERENCE CARD
+                    RiskDamPair & ColorForEach
+===============================================================================
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ RiskDamPair - Counts pairs of BOTH damage AND risk prevented           │
+└─────────────────────────────────────────────────────────────────────────┘
+
+Syntax:       RiskDamPair;[operator];[amount];[stat]
+
+What it does: For every point where BOTH damage and risk are prevented,
+              count 1 pair. Returns the SMALLER of the two prevention values.
+
+Formula:      pairs = Math.min(damagePrevented, riskPrevented)
+
+Examples:
+  RiskDamPair;+;10;Money    → +10 Money per pair
+  RiskDamPair;%;15;Damage   → +15% Damage per pair
+  RiskDamPair;*;2;Grit      → ×2 Grit per pair
+
+Quick Math:
+  Grit=8, Veil=10  →  Damage Prev=4, Risk Prev=5  →  4 pairs
+  Grit=6, Veil=20  →  Damage Prev=3, Risk Prev=10 →  3 pairs
+  Grit=10, Veil=0  →  Damage Prev=5, Risk Prev=0  →  0 pairs (need both!)
+
+When to use:
+  ✓ Reward balanced defense builds
+  ✓ Synergy nodes for Grit + Veil
+  ✓ "Tank build" enablers
+  ✓ Efficient single-slot prevention bonus
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ ColorForEach - Counts unique colors in selected nodes                  │
+└─────────────────────────────────────────────────────────────────────────┘
+
+Syntax:       ColorForEach;[operator];[amount];[stat]
+
+What it does: Counts how many DIFFERENT colors are selected. Each color
+              counts once, regardless of quantity. Gate nodes excluded.
+
+Formula:      colors = unique count of {Red, Blue, Green, Yellow, Purple, Grey}
+
+Examples:
+  ColorForEach;+;5;Money    → +5 Money per unique color
+  ColorForEach;%;10;Damage  → +10% Damage per unique color
+  ColorForEach;+;2;Veil     → +2 Veil per unique color
+
+Quick Math:
+  3 Red, 2 Blue, 1 Green     →  3 colors
+  5 Red nodes                →  1 color
+  1 of each (6 total colors) →  6 colors
+  2 Red + 1 Red Gate + 1 Blue → 2 colors (Gate excluded)
+
+When to use:
+  ✓ Reward rainbow/diverse builds
+  ✓ Synergy nodes at tree ends
+  ✓ Discourage monochrome strategies
+  ✓ Create color-mixing incentives
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ COMPARISON TABLE                                                        │
+└─────────────────────────────────────────────────────────────────────────┘
+
+Condition      | Counts                    | Typical Use Case
+---------------|---------------------------|----------------------------------
+PrevDam        | Damage prevented          | Grit-focused builds
+PrevRisk       | Risk prevented            | Veil-focused builds
+RiskDamPair    | Both prevented together   | Balanced defense builds
+NodeColor:Red  | 1 if Red selected         | Single-color requirements
+ColorForEach   | Unique colors selected    | Rainbow/diverse builds
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ OPERATOR COMPATIBILITY                                                  │
+└─────────────────────────────────────────────────────────────────────────┘
+
+Both conditions work with ALL operators:
+
+  +  Addition       RiskDamPair;+;10;Money   → +10 per pair
+  -  Subtraction    RiskDamPair;-;5;Risk     → -5 per pair
+  *  Multiply       RiskDamPair;*;2;Damage   → ×2 per pair
+  /  Divide         RiskDamPair;/;2;Money    → ÷2 per pair
+  %  Percentage     RiskDamPair;%;15;Grit    → +15% per pair
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ COMMON MISTAKES                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+RiskDamPair:
+  ✗ RiskDamPair counts only damage OR risk
+     → NO! It requires BOTH to be prevented
+  ✗ RiskDamPair adds damage + risk prevention
+     → NO! It takes the MINIMUM (smaller value)
+
+ColorForEach:
+  ✗ ColorForEach is the same as NodeColor
+     → NO! NodeColor checks for one specific color
+     → ColorForEach counts HOW MANY different colors
+  ✗ ColorForEach counts total nodes
+     → NO! It counts unique COLORS, not node quantity
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ EXAMPLE BUILDS                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+
+BALANCED TANK BUILD (using RiskDamPair):
+  - Node 1: None;+;10;Grit
+  - Node 2: None;+;10;Veil
+  - Synergy: RiskDamPair;+;20;Money
+  Result: 5 pairs × 20 = +100 Money
+
+RAINBOW BUILD (using ColorForEach):
+  - Select one node of each color (6 colors)
+  - Synergy: ColorForEach;%;10;Damage
+  Result: 6 colors × 10% = +60% Damage
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ VALIDATION                                                              │
+└─────────────────────────────────────────────────────────────────────────┘
+
+Both conditions are validated by csvLoader.js:
+
+Valid:
+  ✓ RiskDamPair;+;10;Money
+  ✓ RiskDamPair;%;15;Damage
+  ✓ ColorForEach;+;5;Money
+  ✓ ColorForEach;%;10;Damage
+
+Invalid:
+  ✗ RiskDamPair (missing parts)
+  ✗ RiskDamPair;+;abc;Money (invalid amount)
+  ✗ ColorForEach;+;10;InvalidStat (invalid stat)
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ WHERE TO FIND MORE INFO                                                │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  CLAUDE.md              - Technical implementation details
+  NodeEffects.txt        - Complete guide with examples
+  CONDITION_EXAMPLES.txt - Worked calculation examples
+  test_new_conditions.html - Interactive test suite
+
+===============================================================================

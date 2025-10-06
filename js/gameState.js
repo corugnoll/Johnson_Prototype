@@ -451,6 +451,41 @@ class GameState {
                 return Math.max(0, riskPrevented);
             }
 
+            // RiskDamPair: Returns multiplier based on pairs of damage AND risk prevented
+            // For every point where both damage and risk are prevented, count 1
+            if (condition === 'RiskDamPair' || condition.startsWith('RiskDamPair;')) {
+                // Handle both "RiskDamPair" and "RiskDamPair;" formats for flexibility
+                if (!this.preventionData ||
+                    typeof this.preventionData.preliminaryDamagePrevented !== 'number' ||
+                    typeof this.preventionData.preliminaryRiskPrevented !== 'number') {
+                    return 0; // No prevention data available
+                }
+
+                const damagePrevented = this.preventionData.preliminaryDamagePrevented;
+                const riskPrevented = this.preventionData.preliminaryRiskPrevented;
+
+                // Return the minimum of the two (pairs require both damage AND risk)
+                // If 5 damage prevented and 3 risk prevented, you have 3 pairs
+                return Math.min(damagePrevented, riskPrevented);
+            }
+
+            // ColorForEach: Count how many different colors of nodes are selected
+            // Each unique color counts once, regardless of how many nodes of that color
+            if (condition === 'ColorForEach' || condition.startsWith('ColorForEach;')) {
+                // Collect all unique colors from selected nodes (excluding Gate nodes)
+                const uniqueColors = new Set();
+
+                this.selectedNodes.forEach(nodeId => {
+                    const node = this.getNodeById(nodeId);
+                    if (node && node.type !== 'Gate' && node.color) {
+                        uniqueColors.add(node.color);
+                    }
+                });
+
+                // Return the count of unique colors
+                return uniqueColors.size;
+            }
+
             // Log unknown condition types for debugging
             console.warn('Unknown condition type:', condition);
             return 1; // Default to apply effect once for unknown conditions

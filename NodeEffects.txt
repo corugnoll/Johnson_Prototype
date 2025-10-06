@@ -395,6 +395,86 @@ CONDITION: PrevRisk
 
 -----------------------------------------------------------------------------
 
+-------------------------------------------------------------------------------
+CONDITION 8: RiskDamPair (Damage + Risk Prevention Pairs)
+-------------------------------------------------------------------------------
+
+What it does:
+    Counts how many pairs of damage AND risk prevention you have. For every
+    point where BOTH damage and risk are prevented, count 1.
+
+How to use:
+    RiskDamPair;[operator];[amount];[stat]
+
+How it calculates:
+    Takes the SMALLER of damage prevented or risk prevented
+
+    Example: 5 damage prevented, 3 risk prevented = 3 pairs
+    Example: 2 damage prevented, 8 risk prevented = 2 pairs
+    Example: 0 damage prevented, 5 risk prevented = 0 pairs (need both!)
+
+Examples:
+    RiskDamPair;+;10;Money
+        → +10 Money per prevention pair
+        → If you prevent 4 damage and 4 risk: +40 Money
+
+    RiskDamPair;%;15;Damage
+        → +15% Damage per prevention pair
+        → If you prevent 2 damage and 5 risk: +30% Damage (2 pairs)
+
+    RiskDamPair;+;1;Grit
+        → +1 Grit per prevention pair
+        → If you prevent 3 damage and 7 risk: +3 Grit
+
+Why use it:
+    - Rewards balanced prevention (both Grit AND Veil)
+    - Stronger than individual prevention conditions when you have both
+    - Encourages defensive builds that prevent everything
+
+-------------------------------------------------------------------------------
+CONDITION 9: ColorForEach (Unique Colors Selected)
+-------------------------------------------------------------------------------
+
+What it does:
+    Counts how many DIFFERENT colors of nodes you've selected. Each color
+    counts once, regardless of how many nodes of that color you have.
+
+How to use:
+    ColorForEach;[operator];[amount];[stat]
+
+How it calculates:
+    Counts unique colors among selected nodes (Gate nodes excluded)
+
+    Example: 3 Red, 2 Blue, 1 Green selected = 3 different colors
+    Example: 5 Red nodes selected = 1 color
+    Example: 2 Red, 4 Red, 1 Blue = 2 colors
+
+Examples:
+    ColorForEach;+;5;Money
+        → +5 Money per unique color
+        → If you select Red, Blue, Green nodes: +15 Money
+
+    ColorForEach;%;10;Damage
+        → +10% Damage per unique color
+        → If you select only Red nodes: +10% Damage
+        → If you select Red, Blue, Purple nodes: +30% Damage
+
+    ColorForEach;+;2;Veil
+        → +2 Veil per unique color
+        → If you select 4 different colors: +8 Veil
+
+Why use it:
+    - Rewards diverse/rainbow node selection
+    - Good for synergy nodes that benefit from variety
+    - Scales with strategic color mixing (not just stacking one color)
+
+Common mistake to avoid:
+    ✗ ColorForEach is NOT the same as NodeColor
+    ✓ NodeColor counts HOW MANY of a specific color
+    ✓ ColorForEach counts HOW MANY DIFFERENT colors total
+
+-----------------------------------------------------------------------------
+
 ================================================================================
 5. COMPLETE STAT LIST
 ================================================================================
@@ -1019,6 +1099,8 @@ CONDITIONS:
     NodeColorCombo      | NodeColorCombo:Red,Blue;+;200;Money | 1 if true, 0 if false
     PrevDam             | PrevDam;+;5;Money                | Damage prevented
     PrevRisk            | PrevRisk;+;3;Money               | Risk prevented
+    RiskDamPair         | RiskDamPair;+;10;Money           | Min(dmgPrev, riskPrev)
+    ColorForEach        | ColorForEach;+;5;Money           | Count distinct colors
 
 STATS:
 ------

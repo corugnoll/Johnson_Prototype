@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RiskDamPair & ColorForEach Tests</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+        }
+        h1 {
+            color: #ff6467;
+            border-bottom: 2px solid #ff6467;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #51a2ff;
+            margin-top: 30px;
+        }
+        .test-section {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .test-case {
+            background: #333;
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #00ff00;
+        }
+        .test-case.fail {
+            border-left-color: #ff6467;
+        }
+        .test-case.pass {
+            border-left-color: #00ff00;
+        }
+        .result {
+            margin-top: 5px;
+            padding: 5px;
+            background: #1a1a1a;
+        }
+        .pass-indicator {
+            color: #00ff00;
+            font-weight: bold;
+        }
+        .fail-indicator {
+            color: #ff6467;
+            font-weight: bold;
+        }
+        button {
+            background: #ff6467;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #ff4447;
+        }
+        #summary {
+            background: #2a2a2a;
+            border: 2px solid #51a2ff;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <h1>RiskDamPair & ColorForEach Condition Tests</h1>
+    <p>Testing new condition types for the Johnson Prototype game.</p>
+
+    <button onclick="runAllTests()">Run All Tests</button>
+    <button onclick="location.reload()">Reset</button>
+
+    <div id="summary"></div>
+    <div id="test-results"></div>
+
+    <script src="js/gameState.js"></script>
+    <script>
+        // Test results tracking
+        let testResults = {
+            passed: 0,
+            failed: 0,
+            total: 0
+        };
+
+        function runAllTests() {
+            testResults = { passed: 0, failed: 0, total: 0 };
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = '';
+
+            // Run RiskDamPair tests
+            runRiskDamPairTests();
+
+            // Run ColorForEach tests
+            runColorForEachTests();
+
+            // Display summary
+            updateSummary();
+        }
+
+        function runRiskDamPairTests() {
+            const section = createTestSection('RiskDamPair Condition Tests');
+
+            // Test 1: Equal Prevention
+            runTest(section, 'Test 1: RiskDamPair - Equal Prevention', () => {
+                const gameState = new GameState();
+                gameState.loadContract({
+                    nodes: [
+                        { id: 'node1', description: 'Test', effectDesc: 'Test', effect1: 'RiskDamPair;+;10;Money', effect2: '', type: 'Standard', color: 'Red', layer: 0, slot: 0, connections: [] }
+                    ]
+                });
+
+                // Set prevention data
+                gameState.preventionData = {
+                    preliminaryDamagePrevented: 4,
+                    preliminaryRiskPrevented: 4
+                };
+
+                gameState.selectNode('node1');
+                return gameState.previewStats.money === 40; // 4 pairs × 10 = 40
+            }, 'Expected +40 Money (4 pairs × 10)');
+
+            // Test 2: Damage Limited
+            runTest(section, 'Test 2: RiskDamPair - Damage Limited', () => {
+                const gameState = new GameState();
+                gameState.loadContract({
+                    nodes: [
+                        { id: 'node1', description: 'Test', effectDesc: 'Test', effect1: 'RiskDamPair;+;10;Money', effect2: '', type: 'Standard', color: 'Red', layer: 0, slot: 0, connections: [] }
+                    ]
+                });
+
+                gameState.preventionData = {
+                    preliminaryDamagePrevented: 2,
+                    preliminaryRiskPrevented: 8
+                };
+
+                gameState.selectNode('node1');
+                return gameState.previewStats.money === 20; // 2 pairs × 10 = 20 (limited by damage)
+            }, 'Expected +20 Money (2 pairs × 10, limited by damage)');
+
+            // Test 3: Risk Limited
+            runTest(section, 'Test 3: RiskDamPair - Risk Limited', () => {
+                const gameState = new GameState();
+                gameState.loadContract({
+                    nodes: [
+                        { id: 'node1', description: 'Test', effectDesc: 'Test', effect1: 'RiskDamPair;+;10;Money', effect2: '', type: 'Standard', color: 'Red', layer: 0, slot: 0, connections: [] }
+                    ]
+                });
+
+                gameState.preventionData = {
+                    preliminaryDamagePrevented: 7,
+                    preliminaryRiskPrevented: 3
+                };
+
+                gameState.selectNode('node1');
+                return gameState.previewStats.money === 30; // 3 pairs × 10 = 30 (limited by risk)
+            }, 'Expected +30 Money (3 pairs × 10, limited by risk)');
+
+            // Test 4: Zero Pairs
+            runTest(section, 'Test 4: RiskDamPair - Zero Pairs', () => {
+                const gameState = new GameState();
+                gameState.loadContract({
+                    nodes: [
+                        { id: 'node1', description: 'Test', effectDesc: 'Test', effect1: 'RiskDamPair;+;10;Money', effect2: '', type: 'Standard', color: 'Red', layer: 0, slot: 0, connections: [] }
+                    ]
+                });
+
+                gameState.preventionData = {
+                    preliminaryDamagePrevented: 5,
+                    preliminaryRiskPrevented: 0
+                };
+
+                gameState.selectNode('node1');
+                return gameState.previewStats.money === 0; // 0 pairs
+            }, 'Expected +0 Money (0 pairs, no risk prevention)');
+
+            // Test 5: Percentage Operator
+            runTest(section, 'Test 5: RiskDamPair with Percentage', () => {
+                const gameState = new GameState();
+                gameState.loadContract({
+                    nodes: [
+                        { id: 'node1', description: 'Test', effectDesc: 'Test', effect1: 'None;+;20;Damage', effect2: '', type: 'Standard', color: 'Red', layer: 0, slot: 0, connections: [] },
+                        { id: 'node2', description: 'Test', effectDesc: 'Test', effect1: 'RiskDamPair;%;10;Damage', effect2: '', type: 'Standard', color: 'Blue', layer: 0, slot: 1, connections: [] }
+                    ]
+                });
+
+                gameState.preventionData = {
+                    preliminaryDamagePrevented: 3,
+                    preliminaryRiskPrevented: 5
+                };
+
+                gameState.selectNode('node1');
+                gameState.selectNode('node2');
+                return gameState.previewStats.damage === 26; // 20 + 30% (3 pairs × 10%) = 26
+            }, 'Expected 26 Damage (20 base + 30% from 3 pairs)');
+
+            appendSection(section);
+        }
+
+        function runColorForEachTests() {
+            const section = createTestSection('ColorForEach Condition Tests');
+
+            // Test 6: Multiple Colors
+            runTest(section, 'Test 6: ColorForEach - Multiple Colors', () => {
+                const gameState = new GameState();
+                gameState.loadContract({
+                    nodes: [
+                        { id: 'red1', description: 'Test', effectDesc: 'Test', effect1: '', effect2: '', type: 'Standard', color: 'Red', layer: 0, slot: 0, connections: [] },
+                        { id: 'red2', description: 'Test', effectDesc: 'Test', effect1: '', effect2: '', type: 'Standard', color: 'Red', layer: 0, slot: 1, connections: [] },
+                        { id: 'red3', description: 'Test', effectDesc: 'Test', effect1: '', effect2: '', type: 'Standard', color: 'Red', layer: 0, slot: 2, connections: [] },
+                        { id: 'blue1', description: 'Test', effectDesc: 'Test', effect1: '', effect2: '', type: 'Standard', color: 'Blue', layer: 0, slot: 3, connections: [] },
+                        { id: 'blue2', description: 'Test', effectDesc: 'Test', effect1: '', effect2: '', type: 'Standard', color: 'Blue', layer: 0, slot: 4, connections: [] },
+                        { id: 'green1', description: 'Test', effectDesc: 'Test', effect1: '', effect2: '', type: 'Standard', color: 'Green', layer: 0, slot: 5, connections: [] },
+                        { id: 'synergy', description: 'Test', effectDesc: 'Test', effect1: 'ColorForEach;+;5;Money', effect2: '', type: 'Standard', color: 'Purple', layer: 1, slot: 0, connections: [] }
+                    ]
+                });
+
+                gameState.selectNode('red1');
+                gameState.selectNode('red2');
+                gameState.selectNode('red3');
+                gameState.selectNode('blue1');
+                gameState.selectNode('blue2');
+                gameState.selectNode('green1');
+                gameState.selectNode('synergy');
+
+                // Should count: Red, Blue, Green, Purple = 4 colors
+                return gameState.previewStats.money === 20; // 4 colors × 5 = 20
+            }, 'Expected +20 Money (4 colors: Red, Blue, Green, Purple)');
+
+            // Test 7: Single Color
+            runTest(section, 'Test 7: ColorForEach - Single Color', () => {
+                const gameState = new GameState();
+                gameState.loadContract({
+                    nodes: [
+                        { id: 'red1', description: 'Test', effectDesc: 'Test', effect1: '', effect2: '', type: 'Standard', color: 'Red', layer: 0, slot: 0, connections: [] },
+                        { id: 'red2', description: 'Test', effectDesc: 'Test', effect1: '', effect2: '', type: 'Standard', color: 'Red', layer: 0, slot: 1, connections: [] },
+                        { id: 'red3', description: 'Test', effectDesc: 'Test', effect1: '', effect2: '', type: 'Standard', color: 'Red', layer: 0, slot: 2, connections: [] },
+                        { id: 'red4', description: 'Test', effectDesc: 'Test', effect1: '', effect2: '', type: 'Standard', color: 'Red', layer: 0, slot: 3, connections: [] },
+                        { id: 'red5', description: 'Test', effectDesc: 'Test', effect1: 'ColorForEach;+;5;Money', effect2: '', type: 'Standard', color: 'Red', layer: 1, slot: 0, connections: [] }
+                    ]
+                });
+
+                gameState.selectNode('red1');
+                gameState.selectNode('red2');
+                gameState.selectNode('red3');
+                gameState.selectNode('red4');
+                gameState.selectNode('red5');
+
+                // Should count: Red = 1 color
+                return gameState.previewStats.money === 5; // 1 color × 5 = 5
+            }, 'Expected +5 Money (1 color: all Red)');
+
+            // Test 8: All Six Colors
+            runTest(section, 'Test 8: ColorForEach - All Six Colors', () => {
+                const gameState = new GameState();
+                gameState.loadContract({
+                    nodes: [
+                        { id: 'red', description: 'Test', effectDesc: 'Test', effect1: 'None;+;10;Damage', effect2: '', type: 'Standard', color: 'Red', layer: 0, slot: 0, connections: [] },
+                        { id: 'blue', description: 'Test', effectDesc: 'Test', effect1: '', effect2: '', type: 'Standard', color: 'Blue', layer: 0, slot: 1, connections: [] },
+                        { id: 'green', description: 'Test', effectDesc: 'Test', effect1: '', effect2: '', type: 'Standard', color: 'Green', layer: 0, slot: 2, connections: [] },
+                        { id: 'yellow', description: 'Test', effectDesc: 'Test', effect1: '', effect2: '', type: 'Standard', color: 'Yellow', layer: 0, slot: 3, connections: [] },
+                        { id: 'purple', description: 'Test', effectDesc: 'Test', effect1: '', effect2: '', type: 'Standard', color: 'Purple', layer: 0, slot: 4, connections: [] },
+                        { id: 'grey', description: 'Test', effectDesc: 'Test', effect1: '', effect2: '', type: 'Standard', color: 'Grey', layer: 0, slot: 5, connections: [] },
+                        { id: 'synergy', description: 'Test', effectDesc: 'Test', effect1: 'ColorForEach;%;10;Damage', effect2: '', type: 'Standard', color: 'Red', layer: 1, slot: 0, connections: [] }
+                    ]
+                });
+
+                gameState.selectNode('red');
+                gameState.selectNode('blue');
+                gameState.selectNode('green');
+                gameState.selectNode('yellow');
+                gameState.selectNode('purple');
+                gameState.selectNode('grey');
+                gameState.selectNode('synergy');
+
+                // Should count: Red, Blue, Green, Yellow, Purple, Grey = 6 colors
+                // Base damage = 10, +60% (6 colors × 10%) = 16
+                return gameState.previewStats.damage === 16;
+            }, 'Expected 16 Damage (10 base + 60% from 6 colors)');
+
+            // Test 9: No Nodes
+            runTest(section, 'Test 9: ColorForEach - No Nodes', () => {
+                const gameState = new GameState();
+                gameState.loadContract({
+                    nodes: [
+                        { id: 'synergy', description: 'Test', effectDesc: 'Test', effect1: 'ColorForEach;+;10;Money', effect2: '', type: 'Standard', color: 'Red', layer: 0, slot: 0, connections: [] }
+                    ]
+                });
+
+                gameState.selectNode('synergy');
+
+                // Only the synergy node itself (Red) = 1 color
+                return gameState.previewStats.money === 10; // 1 color × 10 = 10
+            }, 'Expected +10 Money (1 color: synergy node itself)');
+
+            // Test 10: Gate Nodes Excluded
+            runTest(section, 'Test 10: ColorForEach - Gate Nodes Excluded', () => {
+                const gameState = new GameState();
+                gameState.loadContract({
+                    nodes: [
+                        { id: 'red1', description: 'Test', effectDesc: 'Test', effect1: '', effect2: '', type: 'Standard', color: 'Red', layer: 0, slot: 0, connections: [] },
+                        { id: 'red2', description: 'Test', effectDesc: 'Test', effect1: '', effect2: '', type: 'Standard', color: 'Red', layer: 0, slot: 1, connections: [] },
+                        { id: 'gate', description: 'Test', effectDesc: 'Test', effect1: '', effect2: '', type: 'Gate', color: 'Red', layer: 0, slot: 2, connections: [], gateCondition: 'RunnerType:hacker;1' },
+                        { id: 'blue', description: 'Test', effectDesc: 'Test', effect1: '', effect2: '', type: 'Standard', color: 'Blue', layer: 0, slot: 3, connections: [] },
+                        { id: 'synergy', description: 'Test', effectDesc: 'Test', effect1: 'ColorForEach;+;10;Money', effect2: '', type: 'Standard', color: 'Purple', layer: 1, slot: 0, connections: [] }
+                    ]
+                });
+
+                gameState.selectNode('red1');
+                gameState.selectNode('red2');
+                gameState.selectNode('gate'); // This should be excluded from color count
+                gameState.selectNode('blue');
+                gameState.selectNode('synergy');
+
+                // Should count: Red, Blue, Purple = 3 colors (Gate node excluded)
+                return gameState.previewStats.money === 30; // 3 colors × 10 = 30
+            }, 'Expected +30 Money (3 colors: Red, Blue, Purple - Gate excluded)');
+
+            appendSection(section);
+        }
+
+        function createTestSection(title) {
+            const section = document.createElement('div');
+            section.className = 'test-section';
+            section.innerHTML = `<h2>${title}</h2>`;
+            return section;
+        }
+
+        function appendSection(section) {
+            document.getElementById('test-results').appendChild(section);
+        }
+
+        function runTest(section, testName, testFn, expectedDescription) {
+            testResults.total++;
+
+            const testCase = document.createElement('div');
+            testCase.className = 'test-case';
+
+            try {
+                const result = testFn();
+                if (result) {
+                    testResults.passed++;
+                    testCase.classList.add('pass');
+                    testCase.innerHTML = `
+                        <strong>${testName}</strong> <span class="pass-indicator">✓ PASS</span>
+                        <div class="result">${expectedDescription}</div>
+                    `;
+                } else {
+                    testResults.failed++;
+                    testCase.classList.add('fail');
+                    testCase.innerHTML = `
+                        <strong>${testName}</strong> <span class="fail-indicator">✗ FAIL</span>
+                        <div class="result">${expectedDescription}</div>
+                        <div class="result">Result did not match expected value</div>
+                    `;
+                }
+            } catch (error) {
+                testResults.failed++;
+                testCase.classList.add('fail');
+                testCase.innerHTML = `
+                    <strong>${testName}</strong> <span class="fail-indicator">✗ ERROR</span>
+                    <div class="result">${expectedDescription}</div>
+                    <div class="result">Error: ${error.message}</div>
+                `;
+            }
+
+            section.appendChild(testCase);
+        }
+
+        function updateSummary() {
+            const summaryDiv = document.getElementById('summary');
+            const passRate = ((testResults.passed / testResults.total) * 100).toFixed(1);
+
+            summaryDiv.innerHTML = `
+                <strong>Test Summary:</strong><br>
+                Total Tests: ${testResults.total}<br>
+                Passed: <span class="pass-indicator">${testResults.passed}</span><br>
+                Failed: <span class="fail-indicator">${testResults.failed}</span><br>
+                Pass Rate: ${passRate}%
+            `;
+        }
+    </script>
+</body>
+</html>

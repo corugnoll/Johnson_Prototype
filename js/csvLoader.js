@@ -635,13 +635,15 @@ class CSVLoader {
             if (!condition || condition.trim() === '') {
                 errors.push(`Row ${rowNumber} ${columnName}: Condition part cannot be empty`);
             } else {
-                const validConditionTypes = ['None', 'RunnerType:', 'RunnerStat:', 'NodeColor:', 'NodeColorCombo:', 'PrevDam', 'PrevRisk'];
+                const validConditionTypes = ['None', 'RunnerType:', 'RunnerStat:', 'NodeColor:', 'NodeColorCombo:', 'PrevDam', 'PrevRisk', 'RiskDamPair', 'ColorForEach'];
                 const isValidCondition = condition === 'None' ||
                                          condition === 'PrevDam' ||
                                          condition === 'PrevRisk' ||
+                                         condition === 'RiskDamPair' ||
+                                         condition === 'ColorForEach' ||
                                          validConditionTypes.some(type => condition.startsWith(type));
                 if (!isValidCondition) {
-                    errors.push(`Row ${rowNumber} ${columnName}: Invalid condition '${condition}'. Must be 'None', 'PrevDam', 'PrevRisk', or start with: RunnerType:, RunnerStat:, NodeColor:, NodeColorCombo:`);
+                    errors.push(`Row ${rowNumber} ${columnName}: Invalid condition '${condition}'. Must be 'None', 'PrevDam', 'PrevRisk', 'RiskDamPair', 'ColorForEach', or start with: RunnerType:, RunnerStat:, NodeColor:, NodeColorCombo:`);
                 }
             }
 

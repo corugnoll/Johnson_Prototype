@@ -139,7 +139,49 @@ PrevRisk;%;5;Damage,+5% damage per risk prevented,"Veil=8, Risk=10, Damage=20 �
 PrevRisk;+;1;Grit,+1 Grit per risk prevented,"Veil=6, Risk=8 → 3 prevented → +3 Grit"
 ```
 
+**RiskDamPair:**
+Triggers based on pairs where BOTH damage AND risk are prevented:
+
+- **Format**: `RiskDamPair;Operator;Amount;Stat`
+- **Multiplier**: Minimum of damage prevented and risk prevented
+- **Calculation**: `pairs = Math.min(damagePrevented, riskPrevented)`
+- **Effect**: `effect_amount = amount * pairs`
+
+**Examples:**
+```csv
+Effect,Description,Example Calculation
+RiskDamPair;+;10;Money,+10 money per prevention pair,"Damage prevented=5, Risk prevented=3 → 3 pairs → +30 money"
+RiskDamPair;%;20;Grit,+20% grit per prevention pair,"Damage prevented=2, Risk prevented=8, Grit=10 → 2 pairs → +40% → 14 grit"
+RiskDamPair;+;1;Damage,+1 damage per prevention pair,"Damage prevented=4, Risk prevented=4 → 4 pairs → +4 damage"
+```
+
 **Important Notes:**
+- Requires BOTH damage and risk to be prevented
+- If only damage OR only risk is prevented, returns 0
+- Limited by whichever prevention is smaller
+
+**ColorForEach:**
+Triggers based on the number of unique colors selected:
+
+- **Format**: `ColorForEach;Operator;Amount;Stat`
+- **Multiplier**: Count of distinct colors in selected nodes (excludes Gate nodes)
+- **Calculation**: `uniqueColors = new Set(selectedNodeColors).size`
+- **Effect**: `effect_amount = amount * uniqueColors`
+
+**Examples:**
+```csv
+Effect,Description,Example Calculation
+ColorForEach;+;5;Money,+5 money per color type,"3 Red, 2 Blue, 1 Green selected → 3 colors → +15 money"
+ColorForEach;%;15;Damage,+15% damage per color type,"5 Red nodes selected → 1 color → +15% damage"
+ColorForEach;+;2;Veil,+2 veil per color type,"2 Red, 3 Blue, 1 Yellow, 4 Purple → 4 colors → +8 veil"
+```
+
+**Important Notes:**
+- Each color counts only ONCE, regardless of quantity
+- Gate nodes are excluded from color counting
+- Rewards diverse node selection strategies
+
+**Prevention-Based Condition Notes:**
 - Prevention-based conditions use preliminary prevention calculations (before percentage effects)
 - Prevention is capped at actual damage/risk values, not just Grit/Veil potential
 - Feedback loops (e.g., PrevRisk adding Veil) don't recalculate prevention mid-pass
@@ -156,6 +198,8 @@ RunnerStat:muscle>=3;+;5;Damage,Add 5 damage per 3 muscle stat
 NodeColor:Red;+;100;Money,Add 100 money if Red node selected
 PrevDam;+;5;Money,Add 5 money per damage prevented by Grit
 PrevRisk;%;10;Money,Add 10% money per risk prevented by Veil
+RiskDamPair;+;10;Money,Add 10 money per damage+risk prevention pair
+ColorForEach;%;20;Damage,Add 20% damage per unique color selected
 ```
 
 **Stats:**
@@ -210,5 +254,7 @@ The CSV loader validates all effect strings to ensure proper format. Valid effec
 - `NodeColorCombo:[color],[color],...`
 - `PrevDam`
 - `PrevRisk`
+- `RiskDamPair`
+- `ColorForEach`
 
 **Valid Stats**: `Damage`, `Risk`, `Money`, `Grit`, `Veil` (case-insensitive)
