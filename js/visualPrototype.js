@@ -29,6 +29,15 @@ class VisualPrototypeRenderer {
         this.dragStartPos = { x: 0, y: 0 };
         this.treeBounds = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
 
+        // Touch event state management
+        this.isTouching = false;
+        this.touchStartPos = { x: 0, y: 0 };
+        this.lastTouchPos = { x: 0, y: 0 };
+        this.touchStartTime = 0;
+        this.isPinching = false;
+        this.lastPinchDistance = 0;
+        this.pinchCenter = { x: 0, y: 0 };
+
         // Zoom state management
         this.zoomLevel = 1.0;
         this.minZoom = 0.25;
@@ -974,6 +983,23 @@ class VisualPrototypeRenderer {
         this.canvas.addEventListener('wheel', (event) => {
             this.handleWheel(event);
         });
+
+        // Touch event listeners for mobile/tablet support
+        this.canvas.addEventListener('touchstart', (event) => {
+            this.handleTouchStart(event);
+        }, { passive: false });
+
+        this.canvas.addEventListener('touchmove', (event) => {
+            this.handleTouchMove(event);
+        }, { passive: false });
+
+        this.canvas.addEventListener('touchend', (event) => {
+            this.handleTouchEnd(event);
+        }, { passive: false });
+
+        this.canvas.addEventListener('touchcancel', (event) => {
+            this.handleTouchCancel(event);
+        }, { passive: false });
     }
 
     /**
@@ -1611,5 +1637,217 @@ class VisualPrototypeRenderer {
         } else {
             this.disablePerformanceMode();
         }
+    }
+
+    /**
+     * Handle touch start events (supports both single-finger pan and two-finger pinch)
+     * @param {TouchEvent} event - Touch start event
+     */
+    handleTouchStart(event) {
+        event.preventDefault(); // Prevent default touch behavior (like browser zoom)
+
+        const touches = event.touches;
+
+        if (touches.length === 1) {
+            // Single finger touch - prepare for pan or tap
+            const touch = touches[0];
+            const rect = this.canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+
+            this.isTouching = true;
+            this.touchStartPos = { x, y };
+            this.lastTouchPos = { x, y };
+            this.touchStartTime = Date.now();
+
+            // Check if touching a node (for tap selection)
+            const touchedNode = this.getNodeAtPosition(x, y);
+            if (!touchedNode) {
+                // Not touching a node, prepare for pan
+                this.canvas.style.cursor = 'grabbing';
+            }
+        } else if (touches.length === 2) {
+            // Two finger touch - start pinch zoom
+            this.isPinching = true;
+            this.isTouching = false; // Cancel any single-finger pan
+
+            const touch1 = touches[0];
+            const touch2 = touches[1];
+
+            // Calculate initial pinch distance
+            const dx = touch2.clientX - touch1.clientX;
+            const dy = touch2.clientY - touch1.clientY;
+            this.lastPinchDistance = Math.sqrt(dx * dx + dy * dy);
+
+            // Calculate pinch center point (in screen coordinates)
+            const rect = this.canvas.getBoundingClientRect();
+            this.pinchCenter = {
+                x: (touch1.clientX + touch2.clientX) / 2 - rect.left,
+                y: (touch1.clientY + touch2.clientY) / 2 - rect.top
+            };
+        }
+    }
+
+    /**
+     * Handle touch move events (pan with one finger, zoom with two fingers)
+     * @param {TouchEvent} event - Touch move event
+     */
+    handleTouchMove(event) {
+        event.preventDefault(); // Prevent default touch behavior
+
+        const touches = event.touches;
+
+        if (this.isPinching && touches.length === 2) {
+            // Two-finger pinch zoom
+            const touch1 = touches[0];
+            const touch2 = touches[1];
+
+            // Calculate current pinch distance
+            const dx = touch2.clientX - touch1.clientX;
+            const dy = touch2.clientY - touch1.clientY;
+            const currentDistance = Math.sqrt(dx * dx + dy * dy);
+
+            // Calculate zoom delta
+            const distanceChange = currentDistance - this.lastPinchDistance;
+            const zoomDelta = distanceChange * 0.01; // Scale factor for zoom sensitivity
+
+            // Calculate new zoom level
+            const newZoomLevel = this.zoomLevel + zoomDelta;
+            const constrainedZoom = Math.max(this.minZoom, Math.min(this.maxZoom, newZoomLevel));
+
+            if (constrainedZoom !== this.zoomLevel) {
+                // Calculate world coordinates at pinch center before zoom
+                const worldX = (this.pinchCenter.x - this.panOffset.x) / this.zoomLevel;
+                const worldY = (this.pinchCenter.y - this.panOffset.y) / this.zoomLevel;
+
+                // Update zoom level
+                this.zoomLevel = constrainedZoom;
+
+                // Adjust pan offset to keep pinch center fixed
+                this.panOffset.x = this.pinchCenter.x - (worldX * this.zoomLevel);
+                this.panOffset.y = this.pinchCenter.y - (worldY * this.zoomLevel);
+
+                // Apply boundary constraints
+                this.constrainPanOffset();
+
+                // Render with throttling for performance
+                if (this.performanceMode) {
+                    this.renderThrottled();
+                } else {
+                    this.render();
+                }
+            }
+
+            // Update pinch distance for next move
+            this.lastPinchDistance = currentDistance;
+
+        } else if (this.isTouching && touches.length === 1) {
+            // Single-finger pan
+            const touch = touches[0];
+            const rect = this.canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+
+            // Calculate movement delta
+            const deltaX = x - this.lastTouchPos.x;
+            const deltaY = y - this.lastTouchPos.y;
+
+            // Only pan if we've moved enough (prevents accidental panning during tap)
+            const moveDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            if (moveDistance > 5) {
+                // Apply pan offset
+                this.panOffset.x += deltaX;
+                this.panOffset.y += deltaY;
+
+                // Apply boundary constraints
+                this.constrainPanOffset();
+
+                // Update last position
+                this.lastTouchPos = { x, y };
+
+                // Render with throttling for performance
+                if (this.performanceMode) {
+                    this.renderThrottled();
+                } else {
+                    this.render();
+                }
+            }
+        }
+    }
+
+    /**
+     * Handle touch end events (detect tap vs pan, end pinch)
+     * @param {TouchEvent} event - Touch end event
+     */
+    handleTouchEnd(event) {
+        event.preventDefault();
+
+        const touches = event.touches;
+
+        if (this.isPinching) {
+            // End of pinch gesture
+            if (touches.length < 2) {
+                this.isPinching = false;
+                this.lastPinchDistance = 0;
+
+                // If one finger remains, switch to pan mode
+                if (touches.length === 1) {
+                    const touch = touches[0];
+                    const rect = this.canvas.getBoundingClientRect();
+                    this.isTouching = true;
+                    this.touchStartPos = {
+                        x: touch.clientX - rect.left,
+                        y: touch.clientY - rect.top
+                    };
+                    this.lastTouchPos = { ...this.touchStartPos };
+                }
+            }
+        } else if (this.isTouching && touches.length === 0) {
+            // End of single-finger gesture
+            const touchDuration = Date.now() - this.touchStartTime;
+            const rect = this.canvas.getBoundingClientRect();
+
+            // Calculate total movement distance
+            const deltaX = this.lastTouchPos.x - this.touchStartPos.x;
+            const deltaY = this.lastTouchPos.y - this.touchStartPos.y;
+            const totalDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+            // If touch was short and didn't move much, treat as tap
+            if (touchDuration < 300 && totalDistance < 10) {
+                // This is a tap - check for node selection
+                const tappedNode = this.getNodeAtPosition(this.touchStartPos.x, this.touchStartPos.y);
+                if (tappedNode) {
+                    const wasSelected = this.toggleNodeSelection(tappedNode);
+                    this.render();
+
+                    // Notify game state of node selection change
+                    if (this.onNodeSelectionChange) {
+                        this.onNodeSelectionChange(tappedNode.id, wasSelected);
+                    }
+
+                    console.log(`Node ${tappedNode.id} tapped - state: ${tappedNode.state}`);
+                }
+            }
+
+            // Reset touch state
+            this.isTouching = false;
+            this.canvas.style.cursor = 'default';
+        }
+    }
+
+    /**
+     * Handle touch cancel events (cleanup state)
+     * @param {TouchEvent} event - Touch cancel event
+     */
+    handleTouchCancel(event) {
+        event.preventDefault();
+
+        // Reset all touch state
+        this.isTouching = false;
+        this.isPinching = false;
+        this.lastPinchDistance = 0;
+        this.canvas.style.cursor = 'default';
+
+        console.log('Touch gesture cancelled');
     }
 }

@@ -73,16 +73,16 @@ class JohnsonApp {
      * Set up global event listeners
      */
     setupEventListeners() {
+        // Handle contract dropdown selection
+        const contractDropdown = document.getElementById('contract-dropdown');
+        if (contractDropdown) {
+            contractDropdown.addEventListener('change', this.handleDropdownSelection.bind(this));
+        }
+
         // Handle file input changes
         const fileInput = document.getElementById('contract-file');
         if (fileInput) {
             fileInput.addEventListener('change', this.handleFileLoad.bind(this));
-        }
-
-        // Handle example contract loading
-        const loadExampleBtn = document.getElementById('load-example');
-        if (loadExampleBtn) {
-            loadExampleBtn.addEventListener('click', this.handleLoadExample.bind(this));
         }
 
         // Handle configuration validation
@@ -130,6 +130,58 @@ class JohnsonApp {
     }
 
     /**
+     * Handle contract dropdown selection
+     */
+    async handleDropdownSelection(event) {
+        const contractKey = event.target.value;
+        if (!contractKey) return; // Empty selection
+
+        try {
+            this.updateLoadingMessage('Loading contract from library...');
+
+            // Load contract from library
+            const contractData = await this.csvLoader.loadFromLibrary(contractKey);
+
+            if (contractData && contractData.length > 0) {
+                this.gameState.setContractData(contractData);
+
+                // Get contract name from library
+                const contractName = CONTRACT_LIBRARY[contractKey].name;
+                this.uiManager.updateContractDisplay(contractName);
+
+                // Create and load visual contract data
+                if (this.visualRenderer) {
+                    const visualContractData = this.csvLoader.createVisualContractData(contractData);
+                    this.visualRenderer.loadContract(visualContractData);
+                    // Sync initial state
+                    this.syncVisualWithGameState();
+                }
+
+                this.updateLoadingMessage(`Contract "${contractName}" loaded successfully.`);
+
+                // Enable validation button and reset execution button
+                const validateBtn = document.getElementById('validate-config');
+                const executeBtn = document.getElementById('execute-contract');
+                if (validateBtn) validateBtn.disabled = false;
+                if (executeBtn) executeBtn.disabled = true;
+
+                // Clear file input
+                const fileInput = document.getElementById('contract-file');
+                if (fileInput) fileInput.value = '';
+            } else {
+                throw new Error('No valid data found in contract');
+            }
+
+        } catch (error) {
+            console.error('Error loading contract from library:', error);
+            this.updateLoadingMessage(`Error loading contract: ${error.message}`);
+            this.uiManager.updateContractDisplay('Error loading contract');
+            // Reset dropdown
+            event.target.value = '';
+        }
+    }
+
+    /**
      * Handle file loading from input
      */
     async handleFileLoad(event) {
@@ -159,6 +211,10 @@ class JohnsonApp {
                 const executeBtn = document.getElementById('execute-contract');
                 if (validateBtn) validateBtn.disabled = false;
                 if (executeBtn) executeBtn.disabled = true;
+
+                // Clear dropdown selection
+                const dropdown = document.getElementById('contract-dropdown');
+                if (dropdown) dropdown.value = '';
             } else {
                 throw new Error('No valid data found in contract file');
             }
@@ -420,8 +476,38 @@ class JohnsonApp {
     }
 }
 
+// Populate contract dropdown from CONTRACT_LIBRARY
+function populateContractDropdown() {
+    const dropdown = document.getElementById('contract-dropdown');
+    if (!dropdown || typeof CONTRACT_LIBRARY === 'undefined') {
+        console.warn('Contract dropdown or CONTRACT_LIBRARY not available');
+        return;
+    }
+
+    // Get all contract keys and sort them alphabetically by name
+    const contracts = Object.keys(CONTRACT_LIBRARY).map(key => ({
+        key: key,
+        name: CONTRACT_LIBRARY[key].name,
+        description: CONTRACT_LIBRARY[key].description
+    })).sort((a, b) => a.name.localeCompare(b.name));
+
+    // Populate dropdown with sorted contracts
+    contracts.forEach(contract => {
+        const option = document.createElement('option');
+        option.value = contract.key;
+        option.textContent = contract.name;
+        option.title = contract.description; // Tooltip showing description
+        dropdown.appendChild(option);
+    });
+
+    console.log(`Loaded ${contracts.length} contracts into dropdown`);
+}
+
 // Initialize application when DOM is loaded
 document.addEventListener('DOMContentLoaded', async () => {
+    // Populate contract dropdown first
+    populateContractDropdown();
+
     const app = new JohnsonApp();
 
     // Make app available globally for debugging

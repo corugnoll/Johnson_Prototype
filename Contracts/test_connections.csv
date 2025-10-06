@@ -1,6 +1,0 @@
-Node ID,Description,Effect Desc,Effect 1,Effect 2,Type,Color,X,Y,Connections
-NODE001,Start,Starting node with +2 Grit,None;+;2;Grit,,Normal,Red,100,100,"NODE002,NODE003"
-NODE002,Path A,+2 Risk path,None;+;2;Risk,,Normal,Green,300,50,NODE004
-NODE003,Path B,+2 Damage path,None;+;2;Damage,,Normal,Blue,300,150,NODE004
-NODE004,Converge,Paths converge here,None;+;1;Veil,,Normal,Yellow,500,100,NODE005
-NODE005,Final,Final node,None;+;5;Money,,Normal,Purple,700,100,

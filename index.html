@@ -6,6 +6,7 @@
     <title>Johnson Prototype - Cyberpunk Simulation Game</title>
     <link rel="stylesheet" href="css/styles.css">
     <script src="Tools/node_modules/papaparse/papaparse.min.js"></script>
+    <script src="js/contractLibrary.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -127,9 +128,16 @@
             <h2>Contract Options</h2>
             <div class="contract-controls">
                 <div class="file-input-group">
-                    <label for="contract-file">Load Contract:</label>
+                    <label for="contract-dropdown">Select Contract:</label>
+                    <select id="contract-dropdown" name="contract-dropdown" aria-label="Select pre-loaded contract">
+                        <option value="">Choose a contract...</option>
+                        <!-- Automatically populated from CONTRACT_LIBRARY -->
+                    </select>
+                </div>
+
+                <div class="file-input-group">
+                    <label for="contract-file">Or Upload Custom:</label>
                     <input type="file" id="contract-file" name="contract-file" accept=".csv" aria-label="Select contract CSV file">
-                    <button type="button" id="load-example" aria-label="Load example contract">Load Example</button>
                 </div>
 
                 <div class="contract-info">

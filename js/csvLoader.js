@@ -190,6 +190,43 @@ class CSVLoader {
     }
 
     /**
+     * Load contract from embedded library (for Android/tablet compatibility)
+     * @param {string} contractKey - Key identifying the contract in CONTRACT_LIBRARY
+     * @returns {Promise<Array>} Parsed and validated CSV data
+     */
+    async loadFromLibrary(contractKey) {
+        try {
+            // Check if CONTRACT_LIBRARY is available
+            if (typeof CONTRACT_LIBRARY === 'undefined') {
+                throw new Error('Contract library not loaded. Ensure contractLibrary.js is included.');
+            }
+
+            // Get contract from library
+            const contract = CONTRACT_LIBRARY[contractKey];
+            if (!contract) {
+                throw new Error(`Contract "${contractKey}" not found in library`);
+            }
+
+            console.log(`Loading contract from library: ${contract.name}`);
+
+            // Parse CSV content directly from library
+            const parsedData = this.parseCSV(contract.csv);
+
+            // Validate data structure
+            this.validateData(parsedData);
+
+            console.log(`Successfully loaded contract "${contract.name}" from library`);
+            console.log(`Parsed ${parsedData.length} nodes`);
+
+            return parsedData;
+
+        } catch (error) {
+            console.error('Error loading contract from library:', error);
+            throw new Error(`Failed to load contract from library: ${error.message}`);
+        }
+    }
+
+    /**
      * Parse CSV text using Papa Parse
      * @param {string} csvText - Raw CSV content
      * @returns {Array} Parsed CSV data
