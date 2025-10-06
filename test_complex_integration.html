@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complex Integration Tests - Johnson Prototype</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1, h2 { color: #00ff00; border-bottom: 2px solid #00ff00; padding-bottom: 10px; }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 4px solid;
+            background-color: #2a2a2a;
+        }
+        .test-result.pass {
+            border-color: #00ff00;
+            color: #00ff00;
+        }
+        .test-result.fail {
+            border-color: #ff0000;
+            color: #ff0000;
+        }
+        .test-summary {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #2a2a2a;
+            border: 2px solid #00ff00;
+        }
+        .test-details {
+            color: #888;
+            font-size: 12px;
+            margin-left: 20px;
+        }
+        .performance-result {
+            color: #ffaa00;
+        }
+    </style>
+</head>
+<body>
+    <h1>Complex Integration Tests</h1>
+    <p>Testing all features working together with realistic contract scenarios</p>
+
+    <div id="testResults"></div>
+    <div id="testSummary" class="test-summary"></div>
+
+    <script src="js/gameState.js"></script>
+    <script>
+        // Test framework
+        class TestRunner {
+            constructor() {
+                this.results = [];
+                this.gameState = null;
+            }
+
+            setup() {
+                this.gameState = new GameState();
+            }
+
+            loadTestContract(nodes) {
+                const contractData = nodes.map((node, index) => ({
+                    'Node ID': node.id,
+                    'Description': node.description || `Node ${node.id}`,
+                    'Effect Desc': node.effectDesc || '',
+                    'Effect 1': node.effect1 || '',
+                    'Effect 2': node.effect2 || '',
+                    'Type': node.type || 'Normal',
+                    'Color': node.color || 'Red',
+                    'Layer': node.layer || 0,
+                    'Slot': node.slot || index.toString(),
+                    'Connections': node.connections || '',
+                    x: node.x || 100 + index * 200,
+                    y: node.y || 100
+                }));
+
+                this.gameState.setContractData(contractData);
+
+                contractData.forEach(node => {
+                    this.gameState.selectNode(node['Node ID']);
+                });
+            }
+
+            assert(condition, testName, details = '') {
+                const result = {
+                    name: testName,
+                    passed: condition,
+                    details: details
+                };
+                this.results.push(result);
+
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `test-result ${condition ? 'pass' : 'fail'}`;
+                resultDiv.innerHTML = `
+                    <strong>${condition ? '✓ PASS' : '✗ FAIL'}: ${testName}</strong>
+                    ${details ? `<div class="test-details">${details}</div>` : ''}
+                `;
+                document.getElementById('testResults').appendChild(resultDiv);
+            }
+
+            assertEqual(actual, expected, testName) {
+                const passed = Math.abs(actual - expected) < 0.01;
+                this.assert(
+                    passed,
+                    testName,
+                    `Expected: ${expected}, Got: ${actual}`
+                );
+            }
+
+            assertPerformance(duration, maxDuration, testName) {
+                const passed = duration < maxDuration;
+                this.assert(
+                    passed,
+                    testName,
+                    `<span class="performance-result">Duration: ${duration.toFixed(2)}ms (max: ${maxDuration}ms)</span>`
+                );
+            }
+
+            displaySummary() {
+                const total = this.results.length;
+                const passed = this.results.filter(r => r.passed).length;
+                const failed = total - passed;
+
+                const summaryDiv = document.getElementById('testSummary');
+                summaryDiv.innerHTML = `
+                    <h2>Test Summary</h2>
+                    <p>Total Tests: ${total}</p>
+                    <p style="color: #00ff00;">Passed: ${passed}</p>
+                    <p style="color: ${failed > 0 ? '#ff0000' : '#888'};">Failed: ${failed}</p>
+                    <p>Success Rate: ${((passed/total)*100).toFixed(1)}%</p>
+                `;
+            }
+        }
+
+        const runner = new TestRunner();
+
+        // TEST 1: Mixed Effect Types Contract
+        console.log('Running Test 1: Mixed Effect Types');
+        runner.setup();
+        runner.loadTestContract([
+            { id: 'START', effect1: 'None;+;10;Damage', effect2: 'None;+;4;Grit', color: 'Red' },
+            { id: 'BOOST', effect1: 'None;%;20;Damage', effect2: 'None;+;2;Veil', color: 'Yellow' },
+            { id: 'REWARD', effect1: 'PrevDam;+;5;Money', effect2: 'PrevRisk;+;3;Money', color: 'Green' }
+        ]);
+        // Expected flow:
+        // 1. Standard: Damage=10, Grit=4, Veil=2
+        // 2. Preliminary prevention: 2 damage prevented (4/2=2), 0 risk prevented
+        // 3. Percentage: Damage=12 (10 + 20%)
+        // 4. PrevDam/PrevRisk: Money = 10 (2*5 + 0*3)
+        runner.assertEqual(runner.gameState.currentPools.damage, 12, 'Test 1a: Damage (10 + 20% = 12)');
+        runner.assertEqual(runner.gameState.currentPools.grit, 4, 'Test 1b: Grit (4)');
+        runner.assertEqual(runner.gameState.currentPools.money, 10, 'Test 1c: Money (2 prev * 5 = 10)');
+
+        // TEST 2: RunnerStat Condition with Percentage
+        console.log('Running Test 2: RunnerStat with Percentage');
+        runner.setup();
+        runner.gameState.runners[0] = { type: 'Hacker', stats: { hacker: 9, face: 0, muscle: 0, ninja: 0 } };
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;100;Money', effect2: '', color: 'Blue' },
+            { id: '2', effect1: 'RunnerStat:hacker>=3;%;10;Money', effect2: '', color: 'Green' }
+        ]);
+        // RunnerStat multiplier: 9/3 = 3
+        // Percentage: 3 * 10% = 30%
+        // Money: 100 + 30% = 130
+        runner.assertEqual(runner.gameState.currentPools.money, 130, 'Test 2: RunnerStat Percentage (100 + 30% = 130)');
+
+        // TEST 3: Complex Prevention Chain
+        console.log('Running Test 3: Complex Prevention Chain');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;20;Damage', effect2: 'None;+;10;Grit', color: 'Red' },
+            { id: '2', effect1: 'None;%;-50;Damage', effect2: '', color: 'Blue' },
+            { id: '3', effect1: 'PrevDam;+;2;Grit', effect2: '', color: 'Yellow' }
+        ]);
+        // 1. Standard: Damage=20, Grit=10
+        // 2. Preliminary prevention: 5 damage prevented (10/2=5, capped at 20)
+        // 3. Percentage: Damage=10 (20 - 50%)
+        // 4. PrevDam: Grit += 5*2 = 10 → Total Grit = 20
+        runner.assertEqual(runner.gameState.currentPools.damage, 10, 'Test 3a: Damage after % (20 - 50% = 10)');
+        runner.assertEqual(runner.gameState.currentPools.grit, 20, 'Test 3b: Grit after PrevDam (10 + 10 = 20)');
+
+        // TEST 4: All Features Combined
+        console.log('Running Test 4: All Features Combined');
+        runner.setup();
+        runner.gameState.runners[0] = { type: 'Muscle', stats: { hacker: 0, face: 0, muscle: 6, ninja: 0 } };
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;15;Damage', effect2: 'None;+;8;Grit', color: 'Red' },
+            { id: '2', effect1: 'None;+;10;Risk', effect2: 'None;+;6;Veil', color: 'Purple' },
+            { id: '3', effect1: 'RunnerType:Muscle;+;50;Money', effect2: '', color: 'Blue' },
+            { id: '4', effect1: 'NodeColor:Red;%;25;Money', effect2: '', color: 'Green' },
+            { id: '5', effect1: 'PrevDam;+;3;Money', effect2: 'PrevRisk;+;2;Money', color: 'Yellow' }
+        ]);
+        // Standard: Damage=15, Grit=8, Risk=10, Veil=6, Money=50
+        // Prelim prevention: 4 damage (8/2=4), 3 risk (6/2=3)
+        // Percentage: Money = 50 + 25% = 62.5
+        // Prevention effects: Money += 4*3 + 3*2 = 12+6 = 18 → Total = 80.5
+        runner.assertEqual(runner.gameState.currentPools.money, 80.5, 'Test 4: Combined Features (50 → 62.5 → 80.5)');
+
+        // TEST 5: NodeColorCombo with Multiple Effects
+        console.log('Running Test 5: NodeColorCombo Integration');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;100;Money', effect2: '', color: 'Red' },
+            { id: '2', effect1: 'None;+;0;Damage', effect2: '', color: 'Blue' },
+            { id: '3', effect1: 'NodeColorCombo:Red,Blue;%;50;Money', effect2: '', color: 'Green' }
+        ]);
+        // Money: 100 + 50% = 150
+        runner.assertEqual(runner.gameState.currentPools.money, 150, 'Test 5: NodeColorCombo (100 + 50% = 150)');
+
+        // TEST 6: Performance Test (50+ nodes)
+        console.log('Running Test 6: Performance Test');
+        runner.setup();
+        const largeContract = [];
+        for (let i = 1; i <= 50; i++) {
+            largeContract.push({
+                id: `NODE_${i}`,
+                effect1: 'None;+;1;Money',
+                effect2: i % 3 === 0 ? 'None;%;1;Money' : '',
+                color: ['Red', 'Blue', 'Green', 'Yellow'][i % 4]
+            });
+        }
+        const startTime = performance.now();
+        runner.loadTestContract(largeContract);
+        const duration = performance.now() - startTime;
+        runner.assertPerformance(duration, 100, 'Test 6: Performance (50 nodes < 100ms)');
+
+        // TEST 7: Cascading Percentages
+        console.log('Running Test 7: Cascading Percentages');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;100;Money', effect2: '' },
+            { id: '2', effect1: 'None;%;10;Money', effect2: '' },
+            { id: '3', effect1: 'None;%;10;Money', effect2: '' },
+            { id: '4', effect1: 'None;%;10;Money', effect2: '' }
+        ]);
+        // 100 → 110 → 121 → 133.1 (multiplicative)
+        runner.assertEqual(runner.gameState.currentPools.money, 133.1, 'Test 7: Cascading % (100 → 133.1)');
+
+        // TEST 8: Prevention with Percentage Boost
+        console.log('Running Test 8: Prevention with Percentage Boost');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;50;Damage', effect2: 'None;+;20;Grit' },
+            { id: '2', effect1: 'None;+;100;Money', effect2: '' },
+            { id: '3', effect1: 'None;%;50;Grit', effect2: '' },
+            { id: '4', effect1: 'PrevDam;%;5;Money', effect2: '' }
+        ]);
+        // Standard: Damage=50, Grit=20, Money=100
+        // Prelim prevention: 10 damage (20/2=10)
+        // Percentage: Grit=30 (20+50%), Money=100 (base)
+        // PrevDam %: 10 * 5% = 50%, Money = 100 + 50% = 150
+        runner.assertEqual(runner.gameState.currentPools.money, 150, 'Test 8: Prevention % Boost (100 + 50% = 150)');
+
+        // TEST 9: Zero Prevention Edge Case
+        console.log('Running Test 9: Zero Prevention Edge Case');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;100;Money', effect2: '' },
+            { id: '2', effect1: 'PrevDam;+;50;Money', effect2: '' },
+            { id: '3', effect1: 'PrevRisk;%;100;Money', effect2: '' }
+        ]);
+        // No damage/grit/risk/veil, so no prevention
+        // Money stays 100
+        runner.assertEqual(runner.gameState.currentPools.money, 100, 'Test 9: Zero Prevention (stays 100)');
+
+        // TEST 10: Maximum Prevention Edge Case
+        console.log('Running Test 10: Maximum Prevention');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;5;Damage', effect2: 'None;+;100;Grit' },
+            { id: '2', effect1: 'PrevDam;+;10;Money', effect2: '' }
+        ]);
+        // Grit=100 → max 50 prevention, but damage=5 → capped at 5
+        // Money = 5 * 10 = 50
+        runner.assertEqual(runner.gameState.currentPools.money, 50, 'Test 10: Max Prevention Capped (5 * 10 = 50)');
+
+        // Display summary
+        runner.displaySummary();
+
+        console.log('All complex integration tests completed');
+    </script>
+</body>
+</html>

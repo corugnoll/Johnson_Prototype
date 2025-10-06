@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Condition Counting Test</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1, h2 {
+            color: #00ffff;
+            border-bottom: 2px solid #00ffff;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 4px solid #00ff00;
+            background-color: #1a1a1a;
+        }
+        .test-result.fail {
+            border-left-color: #ff0000;
+            color: #ff6666;
+        }
+        .test-result.pass {
+            border-left-color: #00ff00;
+        }
+        .test-result.info {
+            border-left-color: #ffff00;
+            color: #ffff00;
+        }
+        .code {
+            background-color: #0a0a0a;
+            padding: 10px;
+            border-radius: 3px;
+            margin: 5px 0;
+            font-family: 'Courier New', monospace;
+        }
+        button {
+            background-color: #00ffff;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #00cccc;
+        }
+        .summary {
+            background-color: #003366;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 2px solid #0066cc;
+        }
+    </style>
+</head>
+<body>
+    <h1>Johnson Prototype - Condition Counting Fix Test</h1>
+    <p>Testing that conditions count instances instead of returning binary 1/0 values.</p>
+
+    <button onclick="runAllTests()">Run All Tests</button>
+    <button onclick="clearResults()">Clear Results</button>
+
+    <div id="summary" class="summary" style="display: none;">
+        <h2>Test Summary</h2>
+        <div id="summaryContent"></div>
+    </div>
+
+    <div id="results"></div>
+
+    <script src="js/gameState.js"></script>
+    <script>
+        let testResults = [];
+        const gameState = new GameState();
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('summary').style.display = 'none';
+            testResults = [];
+        }
+
+        function logTest(testName, passed, expected, actual, details = '') {
+            testResults.push({ testName, passed });
+            const resultsDiv = document.getElementById('results');
+            const testDiv = document.createElement('div');
+            testDiv.className = 'test-result ' + (passed ? 'pass' : 'fail');
+
+            let html = `<strong>${passed ? '✓' : '✗'} ${testName}</strong><br>`;
+            html += `Expected: ${expected}<br>`;
+            html += `Actual: ${actual}<br>`;
+            if (details) html += `Details: ${details}`;
+
+            testDiv.innerHTML = html;
+            resultsDiv.appendChild(testDiv);
+        }
+
+        function logInfo(message) {
+            const resultsDiv = document.getElementById('results');
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'test-result info';
+            infoDiv.innerHTML = `<strong>ℹ ${message}</strong>`;
+            resultsDiv.appendChild(infoDiv);
+        }
+
+        function createTestSection(title) {
+            const resultsDiv = document.getElementById('results');
+            const sectionDiv = document.createElement('div');
+            sectionDiv.className = 'test-section';
+            sectionDiv.innerHTML = `<h2>${title}</h2>`;
+            resultsDiv.appendChild(sectionDiv);
+            return sectionDiv;
+        }
+
+        function setupTestContract() {
+            // Create a simple test contract with nodes of different colors
+            const testNodes = [
+                { id: 'N1', type: 'Start', color: 'Red', effect1: '', effect2: '', connections: ['N2'], layer: 0, slot: 'A', x: 100, y: 100, gateCondition: '' },
+                { id: 'N2', type: 'Normal', color: 'Red', effect1: '', effect2: '', connections: ['N3'], layer: 1, slot: 'A', x: 200, y: 100, gateCondition: '' },
+                { id: 'N3', type: 'Normal', color: 'Blue', effect1: '', effect2: '', connections: ['N4'], layer: 2, slot: 'A', x: 300, y: 100, gateCondition: '' },
+                { id: 'N4', type: 'Normal', color: 'Blue', effect1: '', effect2: '', connections: ['N5'], layer: 3, slot: 'A', x: 400, y: 100, gateCondition: '' },
+                { id: 'N5', type: 'Normal', color: 'Green', effect1: '', effect2: '', connections: [], layer: 4, slot: 'A', x: 500, y: 100, gateCondition: '' },
+                { id: 'N6', type: 'Normal', color: 'Green', effect1: '', effect2: '', connections: [], layer: 4, slot: 'B', x: 500, y: 200, gateCondition: '' },
+                { id: 'N7', type: 'Normal', color: 'Green', effect1: '', effect2: '', connections: [], layer: 4, slot: 'C', x: 500, y: 300, gateCondition: '' },
+                { id: 'N8', type: 'Normal', color: 'Green', effect1: '', effect2: '', connections: [], layer: 4, slot: 'D', x: 500, y: 400, gateCondition: '' }
+            ];
+
+            gameState.setContractData(testNodes);
+        }
+
+        function test1_RunnerTypeCounting() {
+            const section = createTestSection('Test 1: RunnerType Counting');
+
+            // Setup: 2 Hackers, 1 Muscle
+            gameState.runners[0] = { type: 'Hacker', stats: { face: 0, muscle: 0, hacker: 5, ninja: 0 } };
+            gameState.runners[1] = { type: 'Hacker', stats: { face: 0, muscle: 0, hacker: 3, ninja: 0 } };
+            gameState.runners[2] = { type: 'Muscle', stats: { face: 0, muscle: 4, hacker: 0, ninja: 0 } };
+
+            logInfo('Setup: 2 Hackers, 1 Muscle');
+
+            // Test effect: RunnerType:Hacker;+;5;Money
+            // Expected: +10 Money (2 Hackers * 5 money each)
+            setupTestContract();
+            const node = gameState.getNodeById('N1');
+            node.effect1 = 'RunnerType:Hacker;+;5;Money';
+            gameState.selectNode('N1');
+
+            const expectedMoney = 10; // 2 hackers * 5
+            const actualMoney = gameState.currentPools.money;
+
+            logTest(
+                'RunnerType:Hacker with 2 Hackers',
+                actualMoney === expectedMoney,
+                `${expectedMoney} money (2 Hackers × 5)`,
+                `${actualMoney} money`,
+                'Condition should count runners, not return binary 1/0'
+            );
+
+            // Test with zero matching runners
+            gameState.selectedNodes = [];
+            const node2 = gameState.getNodeById('N1');
+            node2.selected = false; // Reset selected state
+            node2.effect1 = 'RunnerType:Ninja;+;10;Money';
+            gameState.selectNode('N1');
+
+            logTest(
+                'RunnerType:Ninja with 0 Ninjas',
+                gameState.currentPools.money === 0,
+                '0 money (0 Ninjas)',
+                `${gameState.currentPools.money} money`,
+                'Should return 0 when no matching runners'
+            );
+
+            // Reset for next test
+            gameState.selectedNodes = [];
+            gameState.calculateCurrentPools();
+        }
+
+        function test2_NodeColorCounting() {
+            const section = createTestSection('Test 2: NodeColor Counting');
+
+            setupTestContract();
+            gameState.runners[0] = { type: 'Hacker', stats: { face: 0, muscle: 0, hacker: 5, ninja: 0 } };
+
+            // Select 3 Red nodes and 1 Blue node
+            // N1 = Red (Start), N2 = Red, N3 = Blue, N4 = Blue
+            const redNode1 = gameState.getNodeById('N1');
+            const redNode2 = gameState.getNodeById('N2');
+            const blueNode1 = gameState.getNodeById('N3');
+
+            redNode1.effect1 = 'NodeColor:Red;+;10;Damage';
+
+            gameState.selectNode('N1');
+            gameState.selectNode('N2');
+            gameState.selectNode('N3');
+
+            logInfo('Setup: Selected N1 (Red), N2 (Red), N3 (Blue)');
+            logInfo('Effect: NodeColor:Red;+;10;Damage on N1');
+
+            // With 2 Red nodes selected (N1 and N2), we should get 2 * 10 = 20 damage
+            // But wait - the effect is ON N1, so when we evaluate, we have:
+            // - N1 selected (Red) - contributes to count
+            // - N2 selected (Red) - contributes to count
+            // - N3 selected (Blue) - doesn't contribute
+            // Total Red count = 2, so 2 * 10 = 20
+            const expectedDamage = 20;
+            const actualDamage = gameState.currentPools.damage;
+
+            logTest(
+                'NodeColor:Red with 2 Red nodes selected',
+                actualDamage === expectedDamage,
+                `${expectedDamage} damage (2 Red × 10)`,
+                `${actualDamage} damage`,
+                'Should count all selected Red nodes'
+            );
+
+            // Reset and test with Blue
+            gameState.selectedNodes = [];
+
+            // Reset node states
+            const blueNode3 = gameState.getNodeById('N3');
+            const blueNode4 = gameState.getNodeById('N4');
+            blueNode3.selected = false;
+            blueNode4.selected = false;
+
+            // Set effect BEFORE selecting nodes
+            blueNode3.effect1 = 'NodeColor:Blue;+;15;Money';
+
+            // Now select nodes
+            gameState.selectNode('N3');
+            gameState.selectNode('N4');
+
+            const expectedMoney = 30; // 2 Blue nodes * 15
+            const actualMoney = gameState.currentPools.money;
+
+            logTest(
+                'NodeColor:Blue with 2 Blue nodes selected',
+                actualMoney === expectedMoney,
+                `${expectedMoney} money (2 Blue × 15)`,
+                `${actualMoney} money`,
+                'Should count all selected Blue nodes'
+            );
+
+            gameState.selectedNodes = [];
+            gameState.calculateCurrentPools();
+        }
+
+        function test3_NodeColorComboCounting() {
+            const section = createTestSection('Test 3: NodeColorCombo Counting');
+
+            setupTestContract();
+            gameState.runners[0] = { type: 'Hacker', stats: { face: 0, muscle: 0, hacker: 5, ninja: 0 } };
+
+            // Setup: 2 Red, 2 Blue, 4 Green nodes selected
+            // Red: N1, N2
+            // Blue: N3, N4
+            // Green: N5, N6, N7, N8
+            gameState.selectNode('N1');
+            gameState.selectNode('N2');
+            gameState.selectNode('N3');
+            gameState.selectNode('N4');
+            gameState.selectNode('N5');
+            gameState.selectNode('N6');
+            gameState.selectNode('N7');
+            gameState.selectNode('N8');
+
+            logInfo('Setup: Selected 2 Red, 2 Blue, 4 Green nodes');
+
+            // Test 3-color combo
+            const testNode = gameState.getNodeById('N1');
+            testNode.effect1 = 'NodeColorCombo:Red,Blue,Green;+;100;Money';
+            gameState.calculateCurrentPools();
+
+            // Minimum count is 2 (Red and Blue both have 2)
+            // So we should get 2 * 100 = 200
+            const expectedMoney = 200;
+            const actualMoney = gameState.currentPools.money;
+
+            logTest(
+                'NodeColorCombo:Red,Blue,Green (2 Red, 2 Blue, 4 Green)',
+                actualMoney === expectedMoney,
+                `${expectedMoney} money (2 complete sets × 100)`,
+                `${actualMoney} money`,
+                'Should count complete sets (limited by minimum color count)'
+            );
+
+            // Test 2-color combo
+            gameState.selectedNodes = [];
+
+            // Reset node states
+            gameState.getNodeById('N1').selected = false;
+            gameState.getNodeById('N2').selected = false;
+            gameState.getNodeById('N5').selected = false;
+            gameState.getNodeById('N6').selected = false;
+            gameState.getNodeById('N7').selected = false;
+
+            // Set effect BEFORE selecting nodes
+            const testNode2 = gameState.getNodeById('N1');
+            testNode2.effect1 = 'NodeColorCombo:Red,Green;+;50;Damage';
+
+            // Now select nodes
+            gameState.selectNode('N1');
+            gameState.selectNode('N2');
+            gameState.selectNode('N5');
+            gameState.selectNode('N6');
+            gameState.selectNode('N7');
+
+            // 2 Red, 3 Green = 2 complete sets
+            const expectedDamage = 100; // 2 * 50
+            const actualDamage = gameState.currentPools.damage;
+
+            logTest(
+                'NodeColorCombo:Red,Green (2 Red, 3 Green)',
+                actualDamage === expectedDamage,
+                `${expectedDamage} damage (2 complete sets × 50)`,
+                `${actualDamage} damage`,
+                'Should count complete sets for 2-color combo'
+            );
+
+            // Test incomplete combo (missing one color)
+            gameState.selectedNodes = [];
+            gameState.selectNode('N1');
+            gameState.selectNode('N2');
+
+            const testNode3 = gameState.getNodeById('N1');
+            testNode3.effect1 = 'NodeColorCombo:Red,Blue;+;75;Money';
+            gameState.calculateCurrentPools();
+
+            logTest(
+                'NodeColorCombo:Red,Blue with only Red nodes',
+                gameState.currentPools.money === 0,
+                '0 money (incomplete combo)',
+                `${gameState.currentPools.money} money`,
+                'Should return 0 when missing required colors'
+            );
+
+            gameState.selectedNodes = [];
+            gameState.calculateCurrentPools();
+        }
+
+        function test4_GateNodesStillWork() {
+            const section = createTestSection('Test 4: Gate Nodes Still Work (Binary Logic)');
+
+            // Create test contract with a gate node
+            const testNodes = [
+                { id: 'N1', type: 'Start', color: 'Red', effect1: '', effect2: '', connections: ['GATE1'], layer: 0, slot: 'A', x: 100, y: 100, gateCondition: '' },
+                { id: 'GATE1', type: 'Gate', color: 'Grey', effect1: '', effect2: '', connections: ['N2'], layer: 1, slot: 'A', x: 200, y: 100, gateCondition: 'RunnerType:Hacker;2' },
+                { id: 'N2', type: 'Normal', color: 'Blue', effect1: 'None;+;100;Money', effect2: '', connections: [], layer: 2, slot: 'A', x: 300, y: 100, gateCondition: '' }
+            ];
+
+            gameState.setContractData(testNodes);
+
+            // Test with 2 Hackers (gate should open)
+            gameState.runners[0] = { type: 'Hacker', stats: { face: 0, muscle: 0, hacker: 5, ninja: 0 } };
+            gameState.runners[1] = { type: 'Hacker', stats: { face: 0, muscle: 0, hacker: 3, ninja: 0 } };
+            gameState.runners[2] = { type: 'Empty', stats: { face: 0, muscle: 0, hacker: 0, ninja: 0 } };
+
+            gameState.selectNode('N1');
+            gameState.updateAvailableNodes();
+
+            const gateNode = gameState.getNodeById('GATE1');
+            const gateAvailableWith2Hackers = gateNode.available;
+
+            logTest(
+                'Gate with RunnerType:Hacker;2 and 2 Hackers',
+                gateAvailableWith2Hackers === true,
+                'Gate opens (available = true)',
+                `Gate available = ${gateAvailableWith2Hackers}`,
+                'Gate should use binary threshold logic, not counting'
+            );
+
+            // Test with 1 Hacker (gate should stay closed)
+            gameState.runners[1] = { type: 'Empty', stats: { face: 0, muscle: 0, hacker: 0, ninja: 0 } };
+            gameState.updateAvailableNodes();
+
+            const gateAvailableWith1Hacker = gateNode.available;
+
+            logTest(
+                'Gate with RunnerType:Hacker;2 and 1 Hacker',
+                gateAvailableWith1Hacker === false,
+                'Gate stays closed (available = false)',
+                `Gate available = ${gateAvailableWith1Hacker}`,
+                'Gate should not open when threshold not met'
+            );
+
+            // Test with 3 Hackers (gate should open)
+            gameState.runners[1] = { type: 'Hacker', stats: { face: 0, muscle: 0, hacker: 2, ninja: 0 } };
+            gameState.runners[2] = { type: 'Hacker', stats: { face: 0, muscle: 0, hacker: 1, ninja: 0 } };
+            gameState.updateAvailableNodes();
+
+            const gateAvailableWith3Hackers = gateNode.available;
+
+            logTest(
+                'Gate with RunnerType:Hacker;2 and 3 Hackers',
+                gateAvailableWith3Hackers === true,
+                'Gate opens (available = true)',
+                `Gate available = ${gateAvailableWith3Hackers}`,
+                'Gate should open when threshold exceeded'
+            );
+        }
+
+        function showSummary() {
+            const summaryDiv = document.getElementById('summary');
+            const summaryContent = document.getElementById('summaryContent');
+
+            const totalTests = testResults.length;
+            const passedTests = testResults.filter(t => t.passed).length;
+            const failedTests = totalTests - passedTests;
+            const passRate = ((passedTests / totalTests) * 100).toFixed(1);
+
+            let html = `<strong>Total Tests: ${totalTests}</strong><br>`;
+            html += `<strong style="color: #00ff00;">Passed: ${passedTests}</strong><br>`;
+            html += `<strong style="color: #ff6666;">Failed: ${failedTests}</strong><br>`;
+            html += `<strong>Pass Rate: ${passRate}%</strong>`;
+
+            summaryContent.innerHTML = html;
+            summaryDiv.style.display = 'block';
+        }
+
+        function runAllTests() {
+            clearResults();
+
+            try {
+                test1_RunnerTypeCounting();
+                test2_NodeColorCounting();
+                test3_NodeColorComboCounting();
+                test4_GateNodesStillWork();
+
+                showSummary();
+            } catch (error) {
+                logInfo(`ERROR: ${error.message}`);
+                console.error(error);
+            }
+        }
+
+        // Auto-run tests on load
+        window.addEventListener('load', () => {
+            logInfo('Test suite loaded. Click "Run All Tests" to begin.');
+        });
+    </script>
+</body>
+</html>

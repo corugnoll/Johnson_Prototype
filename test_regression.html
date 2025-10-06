@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backward Compatibility Regression Tests - Johnson Prototype</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1, h2 { color: #00ff00; border-bottom: 2px solid #00ff00; padding-bottom: 10px; }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 4px solid;
+            background-color: #2a2a2a;
+        }
+        .test-result.pass {
+            border-color: #00ff00;
+            color: #00ff00;
+        }
+        .test-result.fail {
+            border-color: #ff0000;
+            color: #ff0000;
+        }
+        .test-summary {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #2a2a2a;
+            border: 2px solid #00ff00;
+        }
+        .test-details {
+            color: #888;
+            font-size: 12px;
+            margin-left: 20px;
+        }
+        .warning {
+            color: #ffaa00;
+        }
+    </style>
+</head>
+<body>
+    <h1>Backward Compatibility Regression Tests</h1>
+    <p>Verifying existing contracts produce identical results after implementation changes</p>
+
+    <div id="testResults"></div>
+    <div id="testSummary" class="test-summary"></div>
+
+    <script src="js/gameState.js"></script>
+    <script>
+        // Test framework
+        class TestRunner {
+            constructor() {
+                this.results = [];
+                this.gameState = null;
+            }
+
+            setup() {
+                this.gameState = new GameState();
+            }
+
+            loadTestContract(nodes) {
+                const contractData = nodes.map((node, index) => ({
+                    'Node ID': node.id,
+                    'Description': node.description || `Node ${node.id}`,
+                    'Effect Desc': node.effectDesc || '',
+                    'Effect 1': node.effect1 || '',
+                    'Effect 2': node.effect2 || '',
+                    'Type': node.type || 'Normal',
+                    'Color': node.color || 'Red',
+                    'Layer': node.layer || 0,
+                    'Slot': node.slot || index.toString(),
+                    'Connections': node.connections || '',
+                    'GateCondition': node.gateCondition || '',
+                    x: node.x || 100 + index * 200,
+                    y: node.y || 100
+                }));
+
+                this.gameState.setContractData(contractData);
+
+                contractData.forEach(node => {
+                    this.gameState.selectNode(node['Node ID']);
+                });
+            }
+
+            assert(condition, testName, details = '') {
+                const result = {
+                    name: testName,
+                    passed: condition,
+                    details: details
+                };
+                this.results.push(result);
+
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `test-result ${condition ? 'pass' : 'fail'}`;
+                resultDiv.innerHTML = `
+                    <strong>${condition ? '✓ PASS' : '✗ FAIL'}: ${testName}</strong>
+                    ${details ? `<div class="test-details">${details}</div>` : ''}
+                `;
+                document.getElementById('testResults').appendChild(resultDiv);
+            }
+
+            assertEqual(actual, expected, testName, tolerance = 0.01) {
+                const passed = Math.abs(actual - expected) < tolerance;
+                this.assert(
+                    passed,
+                    testName,
+                    `Expected: ${expected}, Got: ${actual}${!passed ? ` (diff: ${Math.abs(actual - expected).toFixed(4)})` : ''}`
+                );
+            }
+
+            displaySummary() {
+                const total = this.results.length;
+                const passed = this.results.filter(r => r.passed).length;
+                const failed = total - passed;
+
+                const summaryDiv = document.getElementById('testSummary');
+                summaryDiv.innerHTML = `
+                    <h2>Test Summary</h2>
+                    <p>Total Tests: ${total}</p>
+                    <p style="color: #00ff00;">Passed: ${passed}</p>
+                    <p style="color: ${failed > 0 ? '#ff0000' : '#888'};">Failed: ${failed}</p>
+                    <p>Success Rate: ${((passed/total)*100).toFixed(1)}%</p>
+                    ${failed === 0 ? '<p style="color: #00ff00; font-weight: bold;">✓ NO REGRESSIONS DETECTED</p>' : '<p style="color: #ff0000; font-weight: bold;">✗ REGRESSIONS DETECTED</p>'}
+                `;
+            }
+        }
+
+        const runner = new TestRunner();
+
+        // LEGACY TEST 1: Basic Addition Effects
+        console.log('Running Legacy Test 1: Basic Addition');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;5;Damage', effect2: 'None;+;3;Grit' },
+            { id: '2', effect1: 'None;+;10;Money', effect2: 'None;+;2;Risk' }
+        ]);
+        runner.assertEqual(runner.gameState.currentPools.damage, 5, 'Legacy 1a: Damage');
+        runner.assertEqual(runner.gameState.currentPools.grit, 3, 'Legacy 1b: Grit');
+        runner.assertEqual(runner.gameState.currentPools.money, 10, 'Legacy 1c: Money');
+        runner.assertEqual(runner.gameState.currentPools.risk, 2, 'Legacy 1d: Risk');
+
+        // LEGACY TEST 2: Subtraction Effects
+        console.log('Running Legacy Test 2: Subtraction');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;20;Damage', effect2: '' },
+            { id: '2', effect1: 'None;-;5;Damage', effect2: '' }
+        ]);
+        runner.assertEqual(runner.gameState.currentPools.damage, 15, 'Legacy 2: Subtraction (20 - 5 = 15)');
+
+        // LEGACY TEST 3: Multiplication Effects
+        console.log('Running Legacy Test 3: Multiplication');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;10;Money', effect2: '' },
+            { id: '2', effect1: 'None;*;3;Money', effect2: '' }
+        ]);
+        runner.assertEqual(runner.gameState.currentPools.money, 30, 'Legacy 3: Multiplication (10 * 3 = 30)');
+
+        // LEGACY TEST 4: Division Effects
+        console.log('Running Legacy Test 4: Division');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;100;Money', effect2: '' },
+            { id: '2', effect1: 'None;/;4;Money', effect2: '' }
+        ]);
+        runner.assertEqual(runner.gameState.currentPools.money, 25, 'Legacy 4: Division (100 / 4 = 25)');
+
+        // LEGACY TEST 5: RunnerType Condition
+        console.log('Running Legacy Test 5: RunnerType Condition');
+        runner.setup();
+        runner.gameState.runners[0] = { type: 'Hacker', stats: { hacker: 5, face: 0, muscle: 0, ninja: 0 } };
+        runner.loadTestContract([
+            { id: '1', effect1: 'RunnerType:Hacker;+;50;Money', effect2: '' },
+            { id: '2', effect1: 'RunnerType:Muscle;+;20;Money', effect2: '' }
+        ]);
+        runner.assertEqual(runner.gameState.currentPools.money, 50, 'Legacy 5: RunnerType (only Hacker applies)');
+
+        // LEGACY TEST 6: RunnerStat Condition
+        console.log('Running Legacy Test 6: RunnerStat Condition');
+        runner.setup();
+        runner.gameState.runners[0] = { type: 'Muscle', stats: { hacker: 0, face: 0, muscle: 9, ninja: 0 } };
+        runner.loadTestContract([
+            { id: '1', effect1: 'RunnerStat:muscle>=3;+;10;Damage', effect2: '' }
+        ]);
+        // 9 muscle / 3 threshold = 3x multiplier
+        // 10 * 3 = 30 damage
+        runner.assertEqual(runner.gameState.currentPools.damage, 30, 'Legacy 6: RunnerStat (9/3 = 3x, 10*3 = 30)');
+
+        // LEGACY TEST 7: NodeColor Condition
+        console.log('Running Legacy Test 7: NodeColor Condition');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;0;Damage', effect2: '', color: 'Red' },
+            { id: '2', effect1: 'NodeColor:Red;+;100;Money', effect2: '', color: 'Blue' }
+        ]);
+        runner.assertEqual(runner.gameState.currentPools.money, 100, 'Legacy 7: NodeColor (Red selected)');
+
+        // LEGACY TEST 8: NodeColorCombo Condition
+        console.log('Running Legacy Test 8: NodeColorCombo Condition');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;0;Damage', effect2: '', color: 'Red' },
+            { id: '2', effect1: 'None;+;0;Damage', effect2: '', color: 'Blue' },
+            { id: '3', effect1: 'NodeColorCombo:Red,Blue;+;75;Money', effect2: '', color: 'Green' }
+        ]);
+        runner.assertEqual(runner.gameState.currentPools.money, 75, 'Legacy 8: NodeColorCombo (both colors)');
+
+        // LEGACY TEST 9: Prevention Mechanics (original behavior)
+        console.log('Running Legacy Test 9: Prevention Mechanics');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;10;Damage', effect2: 'None;+;8;Grit' },
+            { id: '2', effect1: 'None;+;6;Risk', effect2: 'None;+;4;Veil' }
+        ]);
+        // Note: In preview mode, pools show pre-prevention values
+        runner.assertEqual(runner.gameState.currentPools.damage, 10, 'Legacy 9a: Damage (before prevention)');
+        runner.assertEqual(runner.gameState.currentPools.grit, 8, 'Legacy 9b: Grit');
+        runner.assertEqual(runner.gameState.currentPools.risk, 6, 'Legacy 9c: Risk (before prevention)');
+        runner.assertEqual(runner.gameState.currentPools.veil, 4, 'Legacy 9d: Veil');
+
+        // LEGACY TEST 10: Complex Multi-Effect Contract
+        console.log('Running Legacy Test 10: Complex Contract');
+        runner.setup();
+        runner.gameState.runners[0] = { type: 'Hacker', stats: { hacker: 6, face: 0, muscle: 0, ninja: 0 } };
+        runner.gameState.runners[1] = { type: 'Muscle', stats: { hacker: 0, face: 0, muscle: 3, ninja: 0 } };
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;10;Damage', effect2: 'None;+;5;Grit', color: 'Red' },
+            { id: '2', effect1: 'RunnerType:Hacker;-;2;Risk', effect2: 'None;+;50;Money', color: 'Blue' },
+            { id: '3', effect1: 'RunnerStat:muscle>=3;+;3;Damage', effect2: '', color: 'Green' },
+            { id: '4', effect1: 'NodeColor:Red;*;2;Money', effect2: '', color: 'Yellow' }
+        ]);
+        runner.assertEqual(runner.gameState.currentPools.damage, 13, 'Legacy 10a: Damage (10 + 3)');
+        runner.assertEqual(runner.gameState.currentPools.risk, -2, 'Legacy 10b: Risk (0 - 2, allows negative)');
+        runner.assertEqual(runner.gameState.currentPools.money, 100, 'Legacy 10c: Money (50 * 2)');
+        runner.assertEqual(runner.gameState.currentPools.grit, 5, 'Legacy 10d: Grit');
+
+        // LEGACY TEST 11: Order of Operations
+        console.log('Running Legacy Test 11: Order of Operations');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;5;Money', effect2: '' },
+            { id: '2', effect1: 'None;+;5;Money', effect2: '' },
+            { id: '3', effect1: 'None;*;3;Money', effect2: '' },
+            { id: '4', effect1: 'None;-;10;Money', effect2: '' }
+        ]);
+        // (5 + 5) * 3 - 10 = 30 - 10 = 20
+        runner.assertEqual(runner.gameState.currentPools.money, 20, 'Legacy 11: Order (5+5=10, *3=30, -10=20)');
+
+        // LEGACY TEST 12: Gate Node (should be skipped)
+        console.log('Running Legacy Test 12: Gate Node Handling');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;100;Money', effect2: '', type: 'Normal' },
+            { id: 'GATE', effect1: 'None;+;999;Money', effect2: '', type: 'Gate', gateCondition: 'RunnerType:Hacker;1' }
+        ]);
+        // Gate node effects should not apply (they're not effect nodes)
+        runner.assertEqual(runner.gameState.currentPools.money, 100, 'Legacy 12: Gate nodes ignored (100, not 1099)');
+
+        // LEGACY TEST 13: Empty Effect Strings
+        console.log('Running Legacy Test 13: Empty Effects');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;50;Money', effect2: '' },
+            { id: '2', effect1: '', effect2: '' }
+        ]);
+        runner.assertEqual(runner.gameState.currentPools.money, 50, 'Legacy 13: Empty effects ignored');
+
+        // LEGACY TEST 14: Multiple Stats Modified
+        console.log('Running Legacy Test 14: Multiple Stats');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;10;Damage', effect2: 'None;+;5;Risk' },
+            { id: '2', effect1: 'None;+;3;Grit', effect2: 'None;+;2;Veil' },
+            { id: '3', effect1: 'None;+;100;Money', effect2: '' }
+        ]);
+        runner.assertEqual(runner.gameState.currentPools.damage, 10, 'Legacy 14a: Damage');
+        runner.assertEqual(runner.gameState.currentPools.risk, 5, 'Legacy 14b: Risk');
+        runner.assertEqual(runner.gameState.currentPools.grit, 3, 'Legacy 14c: Grit');
+        runner.assertEqual(runner.gameState.currentPools.veil, 2, 'Legacy 14d: Veil');
+        runner.assertEqual(runner.gameState.currentPools.money, 100, 'Legacy 14e: Money');
+
+        // LEGACY TEST 15: Performance (should not degrade)
+        console.log('Running Legacy Test 15: Performance Check');
+        runner.setup();
+        const mediumContract = [];
+        for (let i = 1; i <= 30; i++) {
+            mediumContract.push({
+                id: `N${i}`,
+                effect1: 'None;+;1;Money',
+                effect2: i % 2 === 0 ? 'None;+;1;Damage' : 'None;+;1;Grit'
+            });
+        }
+        const startTime = performance.now();
+        runner.loadTestContract(mediumContract);
+        const duration = performance.now() - startTime;
+        runner.assert(
+            duration < 50,
+            'Legacy 15: Performance (30 nodes < 50ms)',
+            `<span class="${duration < 50 ? '' : 'warning'}">Duration: ${duration.toFixed(2)}ms</span>`
+        );
+
+        // Display summary
+        runner.displaySummary();
+
+        console.log('All backward compatibility regression tests completed');
+    </script>
+</body>
+</html>

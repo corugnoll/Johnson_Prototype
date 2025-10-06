@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prevention Conditions Unit Tests - Johnson Prototype</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1, h2 { color: #00ff00; border-bottom: 2px solid #00ff00; padding-bottom: 10px; }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 4px solid;
+            background-color: #2a2a2a;
+        }
+        .test-result.pass {
+            border-color: #00ff00;
+            color: #00ff00;
+        }
+        .test-result.fail {
+            border-color: #ff0000;
+            color: #ff0000;
+        }
+        .test-summary {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #2a2a2a;
+            border: 2px solid #00ff00;
+        }
+        .test-details {
+            color: #888;
+            font-size: 12px;
+            margin-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Prevention Conditions Unit Tests</h1>
+    <p>Testing TASK #4 & #5: PrevDam and PrevRisk condition implementations</p>
+
+    <div id="testResults"></div>
+    <div id="testSummary" class="test-summary"></div>
+
+    <script src="js/gameState.js"></script>
+    <script>
+        // Test framework
+        class TestRunner {
+            constructor() {
+                this.results = [];
+                this.gameState = null;
+            }
+
+            setup() {
+                this.gameState = new GameState();
+            }
+
+            loadTestContract(nodes) {
+                // Convert simplified node format to full contract data
+                const contractData = nodes.map((node, index) => ({
+                    'Node ID': node.id,
+                    'Description': node.description || `Node ${node.id}`,
+                    'Effect Desc': node.effectDesc || '',
+                    'Effect 1': node.effect1 || '',
+                    'Effect 2': node.effect2 || '',
+                    'Type': node.type || 'Normal',
+                    'Color': node.color || 'Red',
+                    'Layer': node.layer || 0,
+                    'Slot': node.slot || index.toString(),
+                    'Connections': node.connections || '',
+                    x: node.x || 100 + index * 200,
+                    y: node.y || 100
+                }));
+
+                this.gameState.setContractData(contractData);
+
+                // Auto-select all nodes for testing
+                contractData.forEach(node => {
+                    this.gameState.selectNode(node['Node ID']);
+                });
+            }
+
+            assert(condition, testName, details = '') {
+                const result = {
+                    name: testName,
+                    passed: condition,
+                    details: details
+                };
+                this.results.push(result);
+
+                // Display result immediately
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `test-result ${condition ? 'pass' : 'fail'}`;
+                resultDiv.innerHTML = `
+                    <strong>${condition ? '✓ PASS' : '✗ FAIL'}: ${testName}</strong>
+                    ${details ? `<div class="test-details">${details}</div>` : ''}
+                `;
+                document.getElementById('testResults').appendChild(resultDiv);
+            }
+
+            assertEqual(actual, expected, testName) {
+                const passed = Math.abs(actual - expected) < 0.01;
+                this.assert(
+                    passed,
+                    testName,
+                    `Expected: ${expected}, Got: ${actual}`
+                );
+            }
+
+            displaySummary() {
+                const total = this.results.length;
+                const passed = this.results.filter(r => r.passed).length;
+                const failed = total - passed;
+
+                const summaryDiv = document.getElementById('testSummary');
+                summaryDiv.innerHTML = `
+                    <h2>Test Summary</h2>
+                    <p>Total Tests: ${total}</p>
+                    <p style="color: #00ff00;">Passed: ${passed}</p>
+                    <p style="color: ${failed > 0 ? '#ff0000' : '#888'};">Failed: ${failed}</p>
+                    <p>Success Rate: ${((passed/total)*100).toFixed(1)}%</p>
+                `;
+            }
+        }
+
+        // Run tests
+        const runner = new TestRunner();
+
+        // TEST 1: Basic PrevDam Functionality
+        console.log('Running Test 1: Basic PrevDam Functionality');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;10;Damage', effect2: 'None;+;8;Grit' },
+            { id: '2', effect1: 'PrevDam;+;5;Money', effect2: '' }
+        ]);
+        // Grit = 8, Damage = 10 → 4 damage prevented (8/2 = 4)
+        // PrevDam effect: 4 * 5 = 20 money
+        runner.assertEqual(
+            runner.gameState.currentPools.money,
+            20,
+            'Test 1: Basic PrevDam (4 prevented * 5 = 20 money)'
+        );
+
+        // TEST 2: PrevRisk with Percentage Operator
+        console.log('Running Test 2: PrevRisk with Percentage Operator');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;6;Risk', effect2: 'None;+;10;Veil' },
+            { id: '2', effect1: 'None;+;100;Money', effect2: '' },
+            { id: '3', effect1: 'PrevRisk;%;10;Money', effect2: '' }
+        ]);
+        // Veil = 10, Risk = 6 → Math.min(10/2, 6) = Math.min(5, 6) = 5 risk prevented
+        // PrevRisk effect: 5 * 10% = 50% total
+        // Money: 100 + (100 * 0.5) = 150
+        runner.assertEqual(
+            runner.gameState.currentPools.money,
+            150,
+            'Test 2: PrevRisk with % (100 + 50% = 150)'
+        );
+
+        // TEST 3: No Prevention Scenario
+        console.log('Running Test 3: No Prevention Scenario');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;5;Damage', effect2: '' },  // No Grit
+            { id: '2', effect1: 'PrevDam;+;10;Money', effect2: '' }
+        ]);
+        // Grit = 0 → 0 damage prevented
+        // PrevDam multiplier = 0 → no money added
+        runner.assertEqual(
+            runner.gameState.currentPools.money,
+            0,
+            'Test 3: No Prevention (0 grit → 0 money)'
+        );
+
+        // TEST 4: Prevention Exceeds Damage (Capping)
+        console.log('Running Test 4: Prevention Exceeds Damage');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;3;Damage', effect2: 'None;+;10;Grit' },
+            { id: '2', effect1: 'PrevDam;+;5;Money', effect2: '' }
+        ]);
+        // Grit = 10 → max 5 prevention, but only 3 damage
+        // Actual prevention: Math.min(5, 3) = 3
+        // PrevDam effect: 3 * 5 = 15 money
+        runner.assertEqual(
+            runner.gameState.currentPools.money,
+            15,
+            'Test 4: Capped Prevention (3 prevented * 5 = 15 money)'
+        );
+
+        // TEST 5: Feedback Loop Handling
+        console.log('Running Test 5: Feedback Loop Handling');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;10;Risk', effect2: 'None;+;4;Veil' },
+            { id: '2', effect1: 'PrevRisk;+;1;Veil', effect2: '' }
+        ]);
+        // Initial: Veil = 4, Risk = 10 → 2 risk prevented (4/2 = 2)
+        // PrevRisk effect: 2 * 1 = 2 Veil added
+        // Final Veil = 6 (but prevention doesn't recalculate during effect pass)
+        runner.assertEqual(
+            runner.gameState.currentPools.veil,
+            6,
+            'Test 5: Feedback Loop (4 + 2 from PrevRisk = 6 veil)'
+        );
+
+        // TEST 6: PrevDam and PrevRisk Together
+        console.log('Running Test 6: PrevDam and PrevRisk Together');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;10;Damage', effect2: 'None;+;8;Grit' },
+            { id: '2', effect1: 'None;+;8;Risk', effect2: 'None;+;6;Veil' },
+            { id: '3', effect1: 'PrevDam;+;5;Money', effect2: 'PrevRisk;+;3;Money' }
+        ]);
+        // Damage prevention: 8 Grit → 4 prevented
+        // Risk prevention: 6 Veil → 3 prevented
+        // Money from PrevDam: 4 * 5 = 20
+        // Money from PrevRisk: 3 * 3 = 9
+        // Total money: 29
+        runner.assertEqual(
+            runner.gameState.currentPools.money,
+            29,
+            'Test 6: Both Conditions (20 + 9 = 29 money)'
+        );
+
+        // TEST 7: PrevDam with Multiplication
+        console.log('Running Test 7: PrevDam with Multiplication');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;20;Damage', effect2: 'None;+;12;Grit' },
+            { id: '2', effect1: 'PrevDam;*;2;Money', effect2: '' }
+        ]);
+        // Grit = 12 → 6 prevented
+        // PrevDam effect: 6 * 2 (multiplication) = 12 money
+        runner.assertEqual(
+            runner.gameState.currentPools.money,
+            12,
+            'Test 7: PrevDam with * (6 prevented * 2 = 12 money)'
+        );
+
+        // TEST 8: PrevRisk with Large Prevention
+        console.log('Running Test 8: PrevRisk with Large Prevention');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;20;Risk', effect2: 'None;+;20;Veil' },
+            { id: '2', effect1: 'PrevRisk;+;1;Grit', effect2: '' }
+        ]);
+        // Veil = 20 → max 10 prevention, Risk = 20 → 10 prevented
+        // PrevRisk effect: 10 * 1 = 10 grit
+        runner.assertEqual(
+            runner.gameState.currentPools.grit,
+            10,
+            'Test 8: Large Prevention (10 prevented → 10 grit)'
+        );
+
+        // TEST 9: PrevDam with Percentage (Combined Features)
+        console.log('Running Test 9: PrevDam with Percentage');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;20;Damage', effect2: 'None;+;10;Grit' },
+            { id: '2', effect1: 'None;+;50;Money', effect2: '' },
+            { id: '3', effect1: 'PrevDam;%;20;Money', effect2: '' }
+        ]);
+        // Grit = 10 → 5 prevented
+        // PrevDam with %: 5 * 20% = 100% total
+        // Money: 50 + (50 * 1.0) = 100
+        runner.assertEqual(
+            runner.gameState.currentPools.money,
+            100,
+            'Test 9: PrevDam with % (50 + 100% = 100 money)'
+        );
+
+        // TEST 10: Prevention Data Availability
+        console.log('Running Test 10: Prevention Data Availability');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;10;Damage', effect2: 'None;+;6;Grit' },
+            { id: '2', effect1: 'None;+;8;Risk', effect2: 'None;+;4;Veil' }
+        ]);
+        const hasPreventionData = runner.gameState.preventionData &&
+                                  typeof runner.gameState.preventionData.preliminaryDamagePrevented === 'number' &&
+                                  typeof runner.gameState.preventionData.preliminaryRiskPrevented === 'number';
+        runner.assert(
+            hasPreventionData,
+            'Test 10: Prevention Data Available',
+            `Data: ${JSON.stringify(runner.gameState.preventionData)}`
+        );
+
+        // Display summary
+        runner.displaySummary();
+
+        console.log('All prevention condition tests completed');
+    </script>
+</body>
+</html>

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Percentage Operator Unit Tests - Johnson Prototype</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1, h2 { color: #00ff00; border-bottom: 2px solid #00ff00; padding-bottom: 10px; }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 4px solid;
+            background-color: #2a2a2a;
+        }
+        .test-result.pass {
+            border-color: #00ff00;
+            color: #00ff00;
+        }
+        .test-result.fail {
+            border-color: #ff0000;
+            color: #ff0000;
+        }
+        .test-summary {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #2a2a2a;
+            border: 2px solid #00ff00;
+        }
+        .test-details {
+            color: #888;
+            font-size: 12px;
+            margin-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Percentage Operator Unit Tests</h1>
+    <p>Testing TASK #2: Percentage operator implementation</p>
+
+    <div id="testResults"></div>
+    <div id="testSummary" class="test-summary"></div>
+
+    <script src="js/gameState.js"></script>
+    <script>
+        // Test framework
+        class TestRunner {
+            constructor() {
+                this.results = [];
+                this.gameState = null;
+            }
+
+            setup() {
+                this.gameState = new GameState();
+            }
+
+            loadTestContract(nodes) {
+                // Convert simplified node format to full contract data
+                const contractData = nodes.map((node, index) => ({
+                    'Node ID': node.id,
+                    'Description': node.description || `Node ${node.id}`,
+                    'Effect Desc': node.effectDesc || '',
+                    'Effect 1': node.effect1 || '',
+                    'Effect 2': node.effect2 || '',
+                    'Type': node.type || 'Normal',
+                    'Color': node.color || 'Red',
+                    'Layer': node.layer || 0,
+                    'Slot': node.slot || index.toString(),
+                    'Connections': node.connections || '',
+                    x: node.x || 100 + index * 200,
+                    y: node.y || 100
+                }));
+
+                this.gameState.setContractData(contractData);
+
+                // Auto-select all nodes for testing
+                contractData.forEach(node => {
+                    this.gameState.selectNode(node['Node ID']);
+                });
+            }
+
+            assert(condition, testName, details = '') {
+                const result = {
+                    name: testName,
+                    passed: condition,
+                    details: details
+                };
+                this.results.push(result);
+
+                // Display result immediately
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `test-result ${condition ? 'pass' : 'fail'}`;
+                resultDiv.innerHTML = `
+                    <strong>${condition ? '✓ PASS' : '✗ FAIL'}: ${testName}</strong>
+                    ${details ? `<div class="test-details">${details}</div>` : ''}
+                `;
+                document.getElementById('testResults').appendChild(resultDiv);
+            }
+
+            assertEqual(actual, expected, testName) {
+                const passed = Math.abs(actual - expected) < 0.01;
+                this.assert(
+                    passed,
+                    testName,
+                    `Expected: ${expected}, Got: ${actual}`
+                );
+            }
+
+            displaySummary() {
+                const total = this.results.length;
+                const passed = this.results.filter(r => r.passed).length;
+                const failed = total - passed;
+
+                const summaryDiv = document.getElementById('testSummary');
+                summaryDiv.innerHTML = `
+                    <h2>Test Summary</h2>
+                    <p>Total Tests: ${total}</p>
+                    <p style="color: #00ff00;">Passed: ${passed}</p>
+                    <p style="color: ${failed > 0 ? '#ff0000' : '#888'};">Failed: ${failed}</p>
+                    <p>Success Rate: ${((passed/total)*100).toFixed(1)}%</p>
+                `;
+            }
+        }
+
+        // Run tests
+        const runner = new TestRunner();
+
+        // TEST 1: Basic Percentage Increase
+        console.log('Running Test 1: Basic Percentage Increase');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;10;Damage', effect2: '' },
+            { id: '2', effect1: 'None;%;50;Damage', effect2: '' }
+        ]);
+        runner.assertEqual(
+            runner.gameState.currentPools.damage,
+            15,
+            'Test 1: Basic Percentage Increase (10 + 50% = 15)'
+        );
+
+        // TEST 2: Percentage with RunnerStat Multiplier
+        console.log('Running Test 2: Percentage with RunnerStat Multiplier');
+        runner.setup();
+        runner.gameState.runners[0] = { type: 'Hacker', stats: { hacker: 9, face: 0, muscle: 0, ninja: 0 } };
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;100;Money', effect2: '' },
+            { id: '2', effect1: 'RunnerStat:hacker>=3;%;10;Money', effect2: '' }
+        ]);
+        runner.assertEqual(
+            runner.gameState.currentPools.money,
+            130,
+            'Test 2: Percentage with Multiplier (100 + 30% from 3x multiplier = 130)'
+        );
+
+        // TEST 3: Execution Order Verification
+        console.log('Running Test 3: Execution Order Verification');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;5;Damage', effect2: '' },   // Damage = 5
+            { id: '2', effect1: 'None;+;5;Damage', effect2: '' },   // Damage = 10
+            { id: '3', effect1: 'None;*;2;Damage', effect2: '' },   // Damage = 20
+            { id: '4', effect1: 'None;%;10;Damage', effect2: '' }   // Damage = 22
+        ]);
+        runner.assertEqual(
+            runner.gameState.currentPools.damage,
+            22,
+            'Test 3: Execution Order (% applies after *, 20 + 10% = 22, NOT 11)'
+        );
+
+        // TEST 4: Zero Base Value
+        console.log('Running Test 4: Zero Base Value');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;%;100;Risk', effect2: '' }  // 100% of 0
+        ]);
+        runner.assertEqual(
+            runner.gameState.currentPools.risk,
+            0,
+            'Test 4: Zero Base (100% of 0 = 0)'
+        );
+
+        // TEST 5: Negative Percentage (Reduction)
+        console.log('Running Test 5: Negative Percentage');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;20;Damage', effect2: '' },
+            { id: '2', effect1: 'None;%;-25;Damage', effect2: '' }  // -25% reduction
+        ]);
+        runner.assertEqual(
+            runner.gameState.currentPools.damage,
+            15,
+            'Test 5: Negative Percentage (20 - 25% = 15)'
+        );
+
+        // TEST 6: Multiple Percentage Effects (Additive Stacking)
+        console.log('Running Test 6: Multiple Percentage Effects');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;100;Money', effect2: '' },
+            { id: '2', effect1: 'None;%;10;Money', effect2: '' },
+            { id: '3', effect1: 'None;%;10;Money', effect2: '' }
+        ]);
+        // Both percentages apply to the base value sequentially
+        // First: 100 + 10% = 110
+        // Second: 110 + 10% of 110 = 121
+        runner.assertEqual(
+            runner.gameState.currentPools.money,
+            121,
+            'Test 6: Multiple Percentages (100 → 110 → 121, multiplicative stacking)'
+        );
+
+        // TEST 7: Percentage on Different Stats
+        console.log('Running Test 7: Percentage on Multiple Stats');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;50;Money', effect2: 'None;+;10;Grit' },
+            { id: '2', effect1: 'None;%;20;Money', effect2: 'None;%;50;Grit' }
+        ]);
+        runner.assertEqual(runner.gameState.currentPools.money, 60, 'Test 7a: Money (50 + 20% = 60)');
+        runner.assertEqual(runner.gameState.currentPools.grit, 15, 'Test 7b: Grit (10 + 50% = 15)');
+
+        // TEST 8: Large Percentage
+        console.log('Running Test 8: Large Percentage');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;10;Damage', effect2: '' },
+            { id: '2', effect1: 'None;%;500;Damage', effect2: '' }
+        ]);
+        runner.assertEqual(
+            runner.gameState.currentPools.damage,
+            60,
+            'Test 8: Large Percentage (10 + 500% = 60)'
+        );
+
+        // TEST 9: Percentage with NodeColor Condition
+        console.log('Running Test 9: Percentage with NodeColor Condition');
+        runner.setup();
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;100;Money', effect2: '', color: 'Red' },
+            { id: '2', effect1: 'NodeColor:Red;%;25;Money', effect2: '', color: 'Blue' }
+        ]);
+        runner.assertEqual(
+            runner.gameState.currentPools.money,
+            125,
+            'Test 9: NodeColor Condition (100 + 25% = 125)'
+        );
+
+        // TEST 10: Percentage with Zero Multiplier
+        console.log('Running Test 10: Percentage with Zero Multiplier');
+        runner.setup();
+        runner.gameState.runners[0] = { type: 'Empty', stats: { hacker: 0, face: 0, muscle: 0, ninja: 0 } };
+        runner.loadTestContract([
+            { id: '1', effect1: 'None;+;100;Money', effect2: '' },
+            { id: '2', effect1: 'RunnerStat:hacker>=3;%;50;Money', effect2: '' }
+        ]);
+        runner.assertEqual(
+            runner.gameState.currentPools.money,
+            100,
+            'Test 10: Zero Multiplier (condition not met, stays 100)'
+        );
+
+        // Display summary
+        runner.displaySummary();
+
+        console.log('All percentage operator tests completed');
+    </script>
+</body>
+</html>

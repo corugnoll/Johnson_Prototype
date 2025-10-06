@@ -1,0 +1,1114 @@
+================================================================================
+                        JOHNSON PROTOTYPE
+                    NODE EFFECT SYNTAX GUIDE
+                   For Game Designers & Content Creators
+================================================================================
+
+Last Updated: 2025-10-06
+Version: 1.0
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+
+1. Introduction
+2. Basic Format
+3. Complete Operator List
+4. Complete Condition List
+5. Complete Stat List
+6. Prevention Mechanics Explained
+7. Common Examples
+8. Advanced Examples
+9. Calculation Order & Execution
+10. Tips & Best Practices
+11. Common Mistakes to Avoid
+12. Quick Reference Table
+
+================================================================================
+1. INTRODUCTION
+================================================================================
+
+What Are Node Effects?
+----------------------
+Node effects are the "rules" that determine what happens when a player selects
+a node in a contract tree. Each node can have up to two effects that modify
+the player's stats (Damage, Risk, Money, Grit, Veil).
+
+Effects use a simple 4-part format separated by semicolons (;). Think of it
+like a sentence: "IF condition is met, THEN apply operator to amount of stat"
+
+Example:
+    None;+;10;Damage
+    Translation: "No special condition, ADD 10 to Damage"
+
+Why This Matters:
+-----------------
+Understanding effect syntax lets you create balanced, interesting contracts
+that reward player strategy and runner configuration. You can create nodes
+that encourage specific playstyles, reward clever runner choices, or create
+risk/reward tradeoffs.
+
+================================================================================
+2. BASIC FORMAT
+================================================================================
+
+Every effect follows this exact pattern:
+
+    [Condition];[Operator];[Amount];[Stat]
+
+Breaking It Down:
+-----------------
+
+    Part 1 - CONDITION: When does this effect trigger?
+        Examples: None, RunnerType:Hacker, NodeColor:Red
+
+    Part 2 - OPERATOR: What math operation do we perform?
+        Examples: + (add), - (subtract), * (multiply), / (divide), % (percentage)
+
+    Part 3 - AMOUNT: How much do we change?
+        Examples: 5, 10, 2.5, -3
+
+    Part 4 - STAT: Which stat do we modify?
+        Examples: Damage, Risk, Money, Grit, Veil
+
+Important Rules:
+----------------
+- ALWAYS use semicolons (;) to separate parts, NOT commas
+- All four parts are REQUIRED - no shortcuts
+- Spaces don't matter: "None;+;10;Damage" is the same as "None; +; 10; Damage"
+- Case doesn't matter for stats: "Damage", "damage", and "DAMAGE" all work
+- DO NOT include the semicolons inside the individual parts
+
+Examples:
+---------
+    None;+;5;Damage         ✓ Correct: Add 5 damage
+    None,+,5,Damage         ✗ Wrong: Uses commas instead of semicolons
+    None;+;5                ✗ Wrong: Missing the stat
+    RunnerType:Hacker;-;2;Risk;Extra  ✗ Wrong: Too many parts
+
+================================================================================
+3. COMPLETE OPERATOR LIST
+================================================================================
+
+The operator determines HOW the amount is applied to the stat.
+
+-----------------------------------------------------------------------------
+OPERATOR: + (Addition)
+-----------------------------------------------------------------------------
+    What it does: Adds the amount to the stat
+    Use when: You want to increase a stat by a fixed amount
+
+    Examples:
+        None;+;10;Damage        → Add 10 damage
+        None;+;100;Money        → Add 100 money
+        None;+;5;Grit           → Add 5 grit
+
+    Calculation: Current_Stat + Amount
+        If Damage is 5 and you add 10, final Damage = 15
+
+-----------------------------------------------------------------------------
+OPERATOR: - (Subtraction)
+-----------------------------------------------------------------------------
+    What it does: Subtracts the amount from the stat
+    Use when: You want to reduce a stat or create a penalty
+
+    Examples:
+        None;-;3;Risk           → Reduce risk by 3
+        None;-;2;Damage         → Reduce damage by 2
+        None;-;50;Money         → Lose 50 money (cost/penalty)
+
+    Calculation: Current_Stat - Amount
+        If Risk is 10 and you subtract 3, final Risk = 7
+
+    Note: Stats cannot go below 0 (except Money, which can be negative)
+
+-----------------------------------------------------------------------------
+OPERATOR: * (Multiplication)
+-----------------------------------------------------------------------------
+    What it does: Multiplies the stat by the amount
+    Use when: You want dramatic scaling or doubling effects
+
+    Examples:
+        None;*;2;Damage         → Double the damage
+        None;*;1.5;Money        → Increase money by 50%
+        None;*;0.5;Risk         → Cut risk in half
+
+    Calculation: Current_Stat * Amount
+        If Damage is 10 and you multiply by 2, final Damage = 20
+
+    Warning: Multiplication happens BEFORE addition in complex contracts!
+             Be careful with execution order (see Section 9)
+
+-----------------------------------------------------------------------------
+OPERATOR: / (Division)
+-----------------------------------------------------------------------------
+    What it does: Divides the stat by the amount
+    Use when: You want to reduce stats proportionally
+
+    Examples:
+        None;/;2;Damage         → Cut damage in half
+        None;/;4;Risk           → Reduce risk to 1/4
+
+    Calculation: Current_Stat / Amount
+        If Damage is 20 and you divide by 2, final Damage = 10
+
+    CRITICAL WARNING: NEVER divide by zero! The system will reject it.
+
+-----------------------------------------------------------------------------
+OPERATOR: % (Percentage)
+-----------------------------------------------------------------------------
+    What it does: Modifies the stat by a percentage
+    Use when: You want proportional bonuses that scale with current values
+
+    Examples:
+        None;%;20;Damage        → Add 20% more damage
+        None;%;-25;Risk         → Reduce risk by 25%
+        None;%;100;Money        → Double money (add 100%)
+
+    Calculation: Current_Stat + (Current_Stat * Amount/100)
+        If Money is 100 and you apply +20%, final Money = 120
+        If Risk is 20 and you apply -25%, final Risk = 15
+
+    Special Notes:
+        - Percentages are applied AFTER all +, -, *, / operators
+        - You CAN use negative percentages for reductions
+        - 100% means double (add 100% more)
+        - Percentage of 0 equals 0 (no effect if base is zero)
+
+    Why Use Percentages vs Addition?
+        +50 Money  → Always adds exactly 50, regardless of current money
+        %;50;Money → Adds 50% of current money (scales with your wealth)
+
+-----------------------------------------------------------------------------
+
+================================================================================
+4. COMPLETE CONDITION LIST
+================================================================================
+
+Conditions determine WHEN an effect triggers. Some conditions also act as
+multipliers, making effects stronger when certain requirements are met.
+
+-----------------------------------------------------------------------------
+CONDITION: None
+-----------------------------------------------------------------------------
+    What it does: Effect ALWAYS applies, no requirements
+    Multiplier: 1 (effect applies once at full strength)
+
+    Examples:
+        None;+;10;Damage        → Always add 10 damage
+        None;%;20;Money         → Always add 20% money
+
+    Use when: You want guaranteed effects on every node
+
+-----------------------------------------------------------------------------
+CONDITION: RunnerType:[type]
+-----------------------------------------------------------------------------
+    What it does: Effect only applies if you have that runner type hired
+    Multiplier: 1 if true, 0 if false (on or off)
+
+    Valid Types: Face, Muscle, Hacker, Ninja
+
+    Examples:
+        RunnerType:Hacker;-;5;Risk      → Reduce risk by 5 IF you have a Hacker
+        RunnerType:Muscle;+;3;Damage    → Add 3 damage IF you have Muscle
+        RunnerType:Face;+;100;Money     → Add 100 money IF you have Face
+        RunnerType:Ninja;+;4;Veil       → Add 4 veil IF you have Ninja
+
+    How It Works:
+        - Checks ALL three runner slots
+        - If ANY slot has the required type, condition is TRUE
+        - You don't need ONLY that type, just at least one
+
+    Design Uses:
+        - Create "synergy" nodes that reward specific runner choices
+        - Build path branches that favor certain playstyles
+        - Encourage diverse team compositions
+
+-----------------------------------------------------------------------------
+CONDITION: RunnerStat:[stat]>=[threshold]
+-----------------------------------------------------------------------------
+    What it does: Effect strength scales based on total stat across all runners
+    Multiplier: floor(total_stat / threshold)
+
+    Valid Stats: face, muscle, hacker, ninja
+    Valid Operators: >=, >, <=, <, ==
+
+    Examples:
+        RunnerStat:muscle>=3;+;5;Damage
+            → Add 5 damage for every 3 muscle (15 damage if you have 9 muscle)
+
+        RunnerStat:hacker>=5;+;50;Money
+            → Add 50 money for every 5 hacker (100 money if you have 10 hacker)
+
+        RunnerStat:face>=2;-;1;Risk
+            → Reduce risk by 1 for every 2 face (3 risk reduction with 6 face)
+
+    How It Works:
+        - Adds up the stat from ALL runners (all 3 slots)
+        - Divides total by threshold, rounds DOWN
+        - Uses result as multiplier for the effect
+
+    Example Calculation:
+        Effect: RunnerStat:muscle>=3;+;5;Damage
+
+        Runner 1: 4 muscle
+        Runner 2: 3 muscle
+        Runner 3: 2 muscle
+        Total: 9 muscle
+
+        Multiplier: floor(9 / 3) = 3
+        Final Effect: 5 damage × 3 = 15 damage added
+
+    Multi-Stat Support:
+        RunnerStat:face+muscle>=5;+;10;Money
+            → Can combine stats with + symbol
+            → If you have 3 face and 4 muscle (total 7), that's 7/5 = 1x multiplier
+
+    Design Uses:
+        - Reward heavy investment in specific stats
+        - Create breakpoints that encourage strategic stat allocation
+        - Make nodes that scale with runner power
+
+-----------------------------------------------------------------------------
+CONDITION: NodeColor:[color]
+-----------------------------------------------------------------------------
+    What it does: Effect only applies if you've selected a node of that color
+    Multiplier: 1 if true, 0 if false (on or off)
+
+    Valid Colors: Red, Yellow, Green, Blue, Purple, Grey
+
+    Examples:
+        NodeColor:Red;+;100;Money       → Add 100 money IF you selected a Red node
+        NodeColor:Blue;-;3;Risk         → Reduce risk by 3 IF you selected Blue node
+        NodeColor:Green;+;5;Grit        → Add 5 grit IF you selected Green node
+
+    How It Works:
+        - Checks ALL selected nodes in your current path
+        - If ANY selected node has that color, condition is TRUE
+        - Gate nodes are IGNORED for color checking
+
+    Design Uses:
+        - Create color-based synergies and combos
+        - Reward players for committing to a color path
+        - Build "set bonus" style mechanics
+
+-----------------------------------------------------------------------------
+CONDITION: NodeColorCombo:[color1],[color2],...
+-----------------------------------------------------------------------------
+    What it does: Effect only applies if you've selected ALL listed colors
+    Multiplier: 1 if true, 0 if false (on or off)
+
+    Format: List colors separated by commas (NO SPACES after commas)
+
+    Examples:
+        NodeColorCombo:Red,Blue;+;200;Money
+            → Add 200 money IF you have both Red AND Blue nodes selected
+
+        NodeColorCombo:Red,Yellow,Green;+;10;Damage
+            → Add 10 damage IF you have Red AND Yellow AND Green
+
+    How It Works:
+        - Checks that EVERY color in the list appears in your selection
+        - Order doesn't matter: Red,Blue is same as Blue,Red
+        - You can have extra colors beyond the requirement
+
+    Design Uses:
+        - Create powerful rewards for diverse color selection
+        - Encourage players to spread across the tree instead of linear paths
+        - Make "rainbow bonus" nodes
+
+-----------------------------------------------------------------------------
+CONDITION: PrevDam
+-----------------------------------------------------------------------------
+    What it does: Effect strength based on how much damage was PREVENTED by Grit
+    Multiplier: Number of damage points prevented
+
+    Prevention Formula: 2 Grit prevents 1 Damage
+
+    Examples:
+        PrevDam;+;5;Money
+            → Add 5 money for each damage prevented
+            → If 8 Grit prevents 4 damage, gain 20 money
+
+        PrevDam;%;10;Money
+            → Add 10% money for each damage prevented
+            → If 6 Grit prevents 3 damage, gain 30% money
+
+    How It Works:
+        1. System calculates max prevention: floor(Grit / 2)
+        2. Caps at actual damage: min(max_prevention, damage)
+        3. Uses prevented amount as multiplier
+
+    Example Calculation:
+        Current Stats: Damage = 10, Grit = 8
+        Max Prevention: floor(8 / 2) = 4
+        Actual Prevention: min(4, 10) = 4 (capped at damage amount)
+
+        Effect: PrevDam;+;5;Money
+        Money Gained: 4 × 5 = 20
+
+    Edge Cases:
+        - If Grit = 0: No prevention, multiplier = 0, effect doesn't trigger
+        - If Damage = 0: No prevention possible, multiplier = 0
+        - If Grit > Damage × 2: Prevention capped at damage amount
+
+    Design Uses:
+        - Reward defensive builds that stack Grit
+        - Create interesting trade-offs between offense and defense
+        - Make "tank" strategies viable and rewarding
+
+-----------------------------------------------------------------------------
+CONDITION: PrevRisk
+-----------------------------------------------------------------------------
+    What it does: Effect strength based on how much risk was PREVENTED by Veil
+    Multiplier: Number of risk points prevented
+
+    Prevention Formula: 2 Veil prevents 1 Risk
+
+    Examples:
+        PrevRisk;+;3;Money
+            → Add 3 money for each risk prevented
+            → If 10 Veil prevents 5 risk, gain 15 money
+
+        PrevRisk;+;1;Grit
+            → Add 1 grit for each risk prevented
+            → If 6 Veil prevents 3 risk, gain 3 grit
+
+    How It Works:
+        (Identical to PrevDam, but for Risk and Veil)
+        1. System calculates max prevention: floor(Veil / 2)
+        2. Caps at actual risk: min(max_prevention, risk)
+        3. Uses prevented amount as multiplier
+
+    Example Calculation:
+        Current Stats: Risk = 6, Veil = 10
+        Max Prevention: floor(10 / 2) = 5
+        Actual Prevention: min(5, 6) = 5
+
+        Effect: PrevRisk;+;3;Money
+        Money Gained: 5 × 3 = 15
+
+    Design Uses:
+        - Reward stealth builds that stack Veil
+        - Create synergy between defensive stats
+        - Make risk mitigation strategies profitable
+
+-----------------------------------------------------------------------------
+
+================================================================================
+5. COMPLETE STAT LIST
+================================================================================
+
+These are the five stats that effects can modify. Understanding what each
+stat does helps you design balanced nodes.
+
+-----------------------------------------------------------------------------
+STAT: Damage
+-----------------------------------------------------------------------------
+    What it is: Physical harm/injuries your team takes during the mission
+
+    Game Impact:
+        - High damage = mission failure risk
+        - Damage can be prevented by Grit (2 Grit prevents 1 Damage)
+        - Typically the most dangerous stat to accumulate
+
+    Common Uses:
+        - Penalties for aggressive/risky choices
+        - Combat-focused paths add damage
+        - Defensive nodes reduce damage
+
+    Example Effects:
+        None;+;5;Damage         → Aggressive action causes 5 damage
+        None;-;3;Damage         → Defensive choice avoids 3 damage
+        None;%;20;Damage        → Escalation: 20% more damage
+
+-----------------------------------------------------------------------------
+STAT: Risk
+-----------------------------------------------------------------------------
+    What it is: Detection/exposure/heat level during the mission
+
+    Game Impact:
+        - High risk = getting caught, mission complications
+        - Risk can be prevented by Veil (2 Veil prevents 1 Risk)
+        - Represents how "loud" or exposed your operation is
+
+    Common Uses:
+        - Fast/direct paths add risk
+        - Sneaky/careful paths reduce risk
+        - High-reward nodes often have risk costs
+
+    Example Effects:
+        None;+;4;Risk           → Exposed action increases risk
+        RunnerType:Ninja;-;2;Risk  → Ninja reduces risk
+        None;%;25;Risk          → Escalation: 25% more risk
+
+-----------------------------------------------------------------------------
+STAT: Money
+-----------------------------------------------------------------------------
+    What it is: Payment/reward for the contract
+
+    Game Impact:
+        - Primary resource for progression
+        - Can go NEGATIVE (debt/costs)
+        - Higher money = better rewards
+
+    Common Uses:
+        - Reward nodes give money
+        - Optional objectives add money
+        - Some powerful nodes cost money (negative)
+
+    Example Effects:
+        None;+;100;Money        → Standard payment
+        PrevDam;+;5;Money       → Bonus money for preventing damage
+        None;-;50;Money         → Cost/bribe (negative money)
+
+-----------------------------------------------------------------------------
+STAT: Grit
+-----------------------------------------------------------------------------
+    What it is: Toughness, armor, damage resistance
+
+    Game Impact:
+        - PREVENTS damage at 2:1 ratio (2 Grit prevents 1 Damage)
+        - Acts as defensive buffer
+        - Prevention happens at END of calculation
+
+    Common Uses:
+        - Tank/defensive builds stack Grit
+        - Combat-heavy paths need Grit investment
+        - Can trigger PrevDam condition effects
+
+    Example Effects:
+        None;+;6;Grit           → Add armor/protection
+        RunnerType:Muscle;+;3;Grit  → Muscle provides toughness
+        PrevDam;+;1;Grit        → More damage prevented = more Grit
+
+-----------------------------------------------------------------------------
+STAT: Veil
+-----------------------------------------------------------------------------
+    What it is: Stealth, cover, risk mitigation
+
+    Game Impact:
+        - PREVENTS risk at 2:1 ratio (2 Veil prevents 1 Risk)
+        - Acts as stealth buffer
+        - Prevention happens at END of calculation
+
+    Common Uses:
+        - Stealth/ninja builds stack Veil
+        - High-risk paths need Veil investment
+        - Can trigger PrevRisk condition effects
+
+    Example Effects:
+        None;+;4;Veil           → Add stealth/cover
+        RunnerType:Ninja;+;2;Veil  → Ninja provides stealth
+        PrevRisk;+;1;Veil       → More risk prevented = more Veil
+
+-----------------------------------------------------------------------------
+
+================================================================================
+6. PREVENTION MECHANICS EXPLAINED
+================================================================================
+
+Prevention is a special mechanic where Grit and Veil can reduce Damage and
+Risk. This happens AUTOMATICALLY at the end of all effect calculations.
+
+The 2:1 Rule
+------------
+    2 Grit prevents 1 Damage
+    2 Veil prevents 1 Risk
+
+How It Works:
+-------------
+    1. All node effects are calculated first
+    2. You end up with some amount of Damage, Risk, Grit, and Veil
+    3. Prevention is applied:
+        - Damage prevented = min(floor(Grit/2), Damage)
+        - Risk prevented = min(floor(Veil/2), Risk)
+    4. Final stats are displayed/used
+
+Examples:
+---------
+
+    Example 1: Basic Prevention
+        After all effects: Damage = 10, Grit = 8
+        Prevention: floor(8/2) = 4 damage prevented
+        Final Damage: 10 - 4 = 6
+
+    Example 2: Prevention Exceeds Damage
+        After all effects: Damage = 3, Grit = 12
+        Max Prevention: floor(12/2) = 6
+        Actual Prevention: min(6, 3) = 3 (capped at damage)
+        Final Damage: 3 - 3 = 0
+
+    Example 3: Both Types
+        After all effects: Damage = 15, Risk = 8, Grit = 10, Veil = 6
+        Damage Prevention: floor(10/2) = 5
+        Risk Prevention: floor(6/2) = 3
+        Final Damage: 15 - 5 = 10
+        Final Risk: 8 - 3 = 5
+
+Prevention-Based Conditions:
+----------------------------
+    PrevDam and PrevRisk conditions let you create effects that TRIGGER based
+    on how much was prevented. This creates interesting defensive strategies.
+
+    Example:
+        Path A: Damage = 12, Grit = 4
+            Prevention: 2 damage prevented
+            PrevDam;+;5;Money → Gain 10 money (2 × 5)
+
+        Path B: Damage = 12, Grit = 10
+            Prevention: 5 damage prevented
+            PrevDam;+;5;Money → Gain 25 money (5 × 5)
+
+    Path B is rewarded for higher Grit investment!
+
+Design Philosophy:
+------------------
+    - Prevention rewards defensive play
+    - Grit/Veil nodes become valuable for mitigation
+    - Creates interesting build choices (offense vs defense)
+    - PrevDam/PrevRisk conditions make defense profitable, not just safe
+
+================================================================================
+7. COMMON EXAMPLES
+================================================================================
+
+Here are copy-paste ready examples for typical node designs:
+
+Basic Resource Nodes
+--------------------
+    None;+;5;Damage         → Add 5 damage
+    None;+;3;Risk           → Add 3 risk
+    None;+;100;Money        → Add 100 money
+    None;+;4;Grit           → Add 4 grit
+    None;+;2;Veil           → Add 2 veil
+
+Runner Synergy Nodes
+--------------------
+    RunnerType:Hacker;-;3;Risk      → Hacker reduces risk by 3
+    RunnerType:Muscle;+;5;Damage    → Muscle adds 5 damage
+    RunnerType:Face;+;150;Money     → Face adds 150 money
+    RunnerType:Ninja;+;4;Veil       → Ninja adds 4 veil
+
+Scaling with Stats
+------------------
+    RunnerStat:muscle>=3;+;5;Damage     → +5 damage per 3 muscle
+    RunnerStat:hacker>=5;+;50;Money     → +50 money per 5 hacker
+    RunnerStat:face>=2;-;1;Risk         → -1 risk per 2 face
+    RunnerStat:ninja>=4;+;2;Veil        → +2 veil per 4 ninja
+
+Color Synergies
+---------------
+    NodeColor:Red;+;100;Money           → Bonus if you selected Red
+    NodeColor:Blue;-;2;Risk             → Risk reduction with Blue
+    NodeColorCombo:Red,Blue;+;200;Money → Bonus for Red AND Blue
+
+Percentage Bonuses
+------------------
+    None;%;20;Damage        → Add 20% more damage
+    None;%;-25;Risk         → Reduce risk by 25%
+    None;%;50;Money         → Add 50% more money (half again)
+    RunnerStat:hacker>=3;%;10;Money  → +10% money per 3 hacker
+
+Prevention Rewards
+------------------
+    PrevDam;+;5;Money       → +5 money per damage prevented
+    PrevRisk;+;3;Money      → +3 money per risk prevented
+    PrevDam;%;10;Money      → +10% money per damage prevented
+    PrevRisk;+;1;Grit       → +1 grit per risk prevented
+
+Reduction/Penalty Nodes
+------------------------
+    None;-;2;Damage         → Remove 2 damage (healing/caution)
+    None;-;50;Money         → Lose 50 money (cost/bribe)
+    None;*;0.5;Risk         → Cut risk in half
+    None;/;2;Damage         → Divide damage by 2 (halve it)
+
+================================================================================
+8. ADVANCED EXAMPLES
+================================================================================
+
+Complex Combos
+--------------
+    These show more sophisticated designs that combine mechanics:
+
+    Multi-Condition Scaling:
+        RunnerStat:muscle>=3;+;5;Damage
+        NodeColor:Red;+;2;Grit
+
+        → Creates a "red path" that scales with muscle investment
+        → Encourages building a muscle-heavy team for red nodes
+
+    Prevention Feedback Loop:
+        None;+;10;Damage
+        None;+;6;Grit
+        PrevDam;+;1;Veil
+
+        → High damage node with grit protection
+        → Prevention generates veil as a bonus
+        → Rewards defensive play with extra stealth
+
+    Percentage Scaling with Conditions:
+        None;+;100;Money
+        RunnerStat:hacker>=3;%;10;Money
+
+        → Base 100 money
+        → With 9 hacker: 100 + 30% = 130 money
+        → Rewards hacker investment with scaling returns
+
+Contract Path Examples
+----------------------
+
+    The Brute Force Path:
+        Node 1: None;+;15;Damage | None;+;5;Grit
+        Node 2: RunnerType:Muscle;+;5;Damage | None;+;3;Grit
+        Node 3: RunnerStat:muscle>=4;+;200;Money | PrevDam;+;5;Money
+
+        Strategy: High damage, high grit, reward for muscle builds
+        Ideal For: Muscle-heavy teams willing to take damage
+
+    The Stealth Path:
+        Node 1: None;+;8;Risk | None;+;6;Veil
+        Node 2: RunnerType:Ninja;-;3;Risk | None;+;2;Veil
+        Node 3: PrevRisk;+;10;Money | None;%;20;Money
+
+        Strategy: High risk but high veil, rewards prevention
+        Ideal For: Ninja/stealth builds
+
+    The Tech Path:
+        Node 1: None;+;100;Money | RunnerType:Hacker;+;50;Money
+        Node 2: RunnerStat:hacker>=5;%;15;Money | None;-;2;Risk
+        Node 3: NodeColor:Blue;+;150;Money | None;+;2;Veil
+
+        Strategy: Scales with hacker stat, blue synergy
+        Ideal For: Hacker-focused builds
+
+Synergy Nodes (Always Available)
+---------------------------------
+    These special nodes are ALWAYS available, not locked by connections:
+
+    Color Set Bonus:
+        NodeColorCombo:Red,Yellow,Green;+;300;Money | None;+;5;Grit
+
+        → Rewards players who diversify color selection
+        → Big payoff for spreading across tree
+
+    Mixed Team Bonus:
+        RunnerType:Hacker;+;50;Money
+        RunnerType:Muscle;+;3;Grit
+
+        → Benefits from having BOTH Hacker and Muscle
+        → Encourages balanced team composition
+
+    Prevention Specialist:
+        PrevDam;+;2;Veil | PrevRisk;+;2;Grit
+
+        → Converts damage prevention into risk prevention (and vice versa)
+        → Creates defensive synergy
+
+================================================================================
+9. CALCULATION ORDER & EXECUTION
+================================================================================
+
+Understanding WHEN effects trigger is crucial for designing balanced nodes.
+
+The 5-Pass System
+-----------------
+    The game calculates effects in this exact order:
+
+    PASS 1: Standard Effects (+, -, *, /)
+        - All addition, subtraction, multiplication, division effects
+        - Processes in the order nodes were selected
+        - Example: If you have +10 Damage and *2 Damage, you get 20 total
+
+    PASS 2: Prevention Calculation (for conditions)
+        - Calculates how much damage/risk WOULD be prevented
+        - Stores this for PrevDam/PrevRisk conditions to use
+        - DOES NOT actually reduce damage/risk yet
+
+    PASS 3: Percentage Effects (%)
+        - All percentage modifiers are applied
+        - Uses the results from Pass 1 as the base values
+        - Example: If Pass 1 resulted in 10 Damage, then +20% adds 2 more
+
+    PASS 4: Prevention-Based Effects (PrevDam/PrevRisk)
+        - Effects with PrevDam/PrevRisk conditions trigger
+        - Uses the prevention amounts calculated in Pass 2
+
+    PASS 5: Final Prevention Mechanics
+        - Actually applies Grit → Damage and Veil → Risk prevention
+        - This is what you see in the final results
+
+Why This Matters:
+-----------------
+
+    Example 1: Order of Operations
+        Node A: None;+;10;Damage
+        Node B: None;*;2;Damage
+        Node C: None;%;50;Damage
+
+        Pass 1: 10 damage, then ×2 = 20 damage
+        Pass 3: 20 damage + 50% = 30 damage
+        Final: 30 damage
+
+        If percentage came first, it would be different!
+
+    Example 2: Prevention Timing
+        Node A: None;+;10;Damage | None;+;8;Grit
+        Node B: PrevDam;+;5;Money
+
+        Pass 1: Damage = 10, Grit = 8
+        Pass 2: Prevention calculated: floor(8/2) = 4 damage prevented
+        Pass 4: PrevDam triggers: 4 × 5 = 20 money
+        Pass 5: Final Damage = 10 - 4 = 6
+
+        The prevention calculation happens BEFORE the money bonus!
+
+Design Implications:
+--------------------
+
+    1. Percentage nodes are most powerful LATE in a path
+        → They multiply whatever you've accumulated
+        → Place them after additive nodes for maximum effect
+
+    2. Prevention rewards are calculated BEFORE percentages affect them
+        → PrevDam money bonus won't be boosted by later % money nodes
+        → Design accordingly
+
+    3. Multiplication happens BEFORE percentage
+        → None;*;2;Damage then None;%;50;Damage = big damage
+        → Order matters for balance
+
+================================================================================
+10. TIPS & BEST PRACTICES
+================================================================================
+
+For Creating Balanced Nodes
+----------------------------
+
+    1. Start Simple
+        → Use None condition and + operator for your first nodes
+        → Add complexity only when you understand the basics
+        → Example: None;+;5;Damage before trying conditions
+
+    2. Use Percentages for Scaling
+        → Fixed amounts (+10) are good early in paths
+        → Percentages (%;20) are good late in paths
+        → Percentages reward players who accumulate stats
+
+    3. Create Synergies, Not Hard Requirements
+        → RunnerType:Hacker;+;50;Money still gives 0 money without Hacker
+        → Better: None;+;50;Money | RunnerType:Hacker;+;50;Money
+        → This gives 50 base + 50 bonus = encourages without requiring
+
+    4. Use Both Effects on Important Nodes
+        → Each node can have Effect 1 AND Effect 2
+        → Common pattern: Primary stat + Secondary stat
+        → Example: None;+;10;Damage | None;+;4;Grit
+
+    5. Balance Risk and Reward
+        → High money nodes should have damage/risk costs
+        → Example: None;+;200;Money | None;+;8;Damage
+        → Makes choices meaningful
+
+For Creating Strategic Depth
+-----------------------------
+
+    6. Create Distinct Paths
+        → Red Path: High damage, high grit, muscle synergy
+        → Blue Path: High risk, high veil, hacker synergy
+        → Players should feel paths are meaningfully different
+
+    7. Use Thresholds Strategically
+        → RunnerStat:muscle>=3 creates a "breakpoint" at 3, 6, 9
+        → Players will try to hit these thresholds
+        → Use different thresholds to create diverse builds
+
+    8. Reward Prevention, Not Just Prevention Stats
+        → PrevDam;+;5;Money makes Grit profitable, not just safe
+        → Creates interesting offense vs defense tradeoffs
+        → "Tank build" becomes viable
+
+    9. Color Combos for Exploration
+        → NodeColorCombo encourages players to spread across tree
+        → Use for late-game power spikes
+        → Example: NodeColorCombo:Red,Blue,Green;+;500;Money
+
+    10. Use Synergy Nodes Sparingly
+        → Always-available nodes are powerful (no path requirement)
+        → Use for meta-bonuses: color sets, team composition
+        → Don't make them stronger than path nodes
+
+For Avoiding Common Pitfalls
+-----------------------------
+
+    11. Don't Make Nodes Too Swingy
+        → None;*;5;Damage can create HUGE values
+        → Multiplication should be 2x or 3x max in most cases
+        → Prefer None;%;100;Damage over None;*;2;Damage (same result, clearer)
+
+    12. Test Your Math
+        → RunnerStat:hacker>=3;+;10;Money with 9 hacker = 30 money
+        → Make sure your effects give reasonable values
+        → Spreadsheet testing helps
+
+    13. Consider Edge Cases
+        → What if player has 0 of a stat?
+        → What if they have MAX of a stat?
+        → PrevDam with 0 Grit = no effect (this is fine)
+
+    14. Use Negative Amounts Carefully
+        → None;+;-5;Damage is confusing (adds negative = subtracts)
+        → Better: None;-;5;Damage (clearly subtracts)
+        → Exception: Negative percentages are fine: None;%;-25;Risk
+
+    15. Think About Calculation Order
+        → Players select nodes in sequence
+        → Early nodes create the base values
+        → Late nodes modify those bases
+        → Structure paths accordingly
+
+================================================================================
+11. COMMON MISTAKES TO AVOID
+================================================================================
+
+Syntax Errors (will break validation)
+--------------------------------------
+
+    ✗ None,+,10,Damage
+        → WRONG: Uses commas instead of semicolons
+        ✓ CORRECT: None;+;10;Damage
+
+    ✗ None;+;10
+        → WRONG: Missing the stat (only 3 parts)
+        ✓ CORRECT: None;+;10;Damage
+
+    ✗ RunnerType:Hacker
+        → WRONG: Not a complete effect, just a condition
+        ✓ CORRECT: RunnerType:Hacker;+;50;Money
+
+    ✗ None;+;10;Damage;Extra
+        → WRONG: Too many parts (5 instead of 4)
+        ✓ CORRECT: None;+;10;Damage
+
+    ✗ +;10;Damage
+        → WRONG: Missing condition (only 3 parts)
+        ✓ CORRECT: None;+;10;Damage
+
+    ✗ None;%;0.2;Money
+        → WRONG: Percentage should be "20" not "0.2"
+        ✓ CORRECT: None;%;20;Money (20% not 0.20)
+
+Condition Mistakes
+------------------
+
+    ✗ RunnerType;+;10;Money
+        → WRONG: Missing the runner type after colon
+        ✓ CORRECT: RunnerType:Hacker;+;10;Money
+
+    ✗ RunnerType:hacker;+;10;Money
+        → WRONG: Lowercase "hacker" (should be "Hacker")
+        ✓ CORRECT: RunnerType:Hacker;+;10;Money
+
+    ✗ NodeColor;+;10;Money
+        → WRONG: Missing the color after colon
+        ✓ CORRECT: NodeColor:Red;+;10;Money
+
+    ✗ NodeColor:red;+;10;Money
+        → WRONG: Lowercase "red" (should be "Red")
+        ✓ CORRECT: NodeColor:Red;+;10;Money
+
+    ✗ RunnerStat:muscle;+;5;Damage
+        → WRONG: Missing comparison operator and threshold
+        ✓ CORRECT: RunnerStat:muscle>=3;+;5;Damage
+
+    ✗ NodeColorCombo:Red, Blue;+;100;Money
+        → WRONG: Space after comma
+        ✓ CORRECT: NodeColorCombo:Red,Blue;+;100;Money
+
+Operator Mistakes
+-----------------
+
+    ✗ None;add;10;Damage
+        → WRONG: "add" is not valid, use "+"
+        ✓ CORRECT: None;+;10;Damage
+
+    ✗ None;%;0.5;Money
+        → WRONG: Percentage is 50, not 0.5
+        ✓ CORRECT: None;%;50;Money
+
+    ✗ None;/;0;Damage
+        → WRONG: Division by zero is forbidden
+        ✓ CORRECT: None;/;2;Damage
+
+Stat Mistakes
+-------------
+
+    ✗ None;+;10;Health
+        → WRONG: "Health" is not a valid stat
+        ✓ CORRECT: None;+;10;Damage (or Grit for defense)
+
+    ✗ None;+;10;Cash
+        → WRONG: "Cash" is not a valid stat
+        ✓ CORRECT: None;+;10;Money
+
+    ✗ None;+;10;Stealth
+        → WRONG: "Stealth" is not a valid stat
+        ✓ CORRECT: None;+;10;Veil
+
+Logic Mistakes (valid syntax, but probably not what you want)
+--------------------------------------------------------------
+
+    ✗ None;+;-5;Damage
+        → VALID but confusing: "Add negative 5" = subtract 5
+        ✓ BETTER: None;-;5;Damage (clearly subtracts)
+
+    ✗ RunnerStat:muscle>=3;*;2;Damage
+        → VALID but dangerous: With 9 muscle, multiplier is 3, so ×6 total!
+        ✓ SAFER: RunnerStat:muscle>=3;+;5;Damage
+
+    ✗ None;%;200;Damage
+        → VALID but extreme: Adds 200% (triples damage)
+        ✓ GENTLER: None;%;50;Damage (adds 50%)
+
+    ✗ PrevDam;+;5;Grit
+        → VALID but creates feedback: Prevention increases Grit
+        ✓ CLEARER: PrevDam;+;5;Money (no circular dependency)
+
+Design Mistakes (will create bad player experience)
+----------------------------------------------------
+
+    ✗ Making all nodes require specific runners
+        → Players feel restricted, not strategic
+        ✓ BETTER: Mix of None and RunnerType conditions
+
+    ✗ Using only multiplication/division
+        → Creates wild swings, hard to predict
+        ✓ BETTER: Mostly +/-, occasional * or %
+
+    ✗ Making every node give the same stats
+        → Boring, no choices matter
+        ✓ BETTER: Varied stat distributions
+
+    ✗ No defensive nodes in high-damage contracts
+        → Players have no counterplay
+        ✓ BETTER: Include Grit/Veil sources
+
+================================================================================
+12. QUICK REFERENCE TABLE
+================================================================================
+
+OPERATORS:
+----------
+    Symbol  | Name           | Example           | Result (if base=10)
+    --------|----------------|-------------------|--------------------
+    +       | Add            | None;+;5;Damage   | 15
+    -       | Subtract       | None;-;3;Damage   | 7
+    *       | Multiply       | None;*;2;Damage   | 20
+    /       | Divide         | None;/;2;Damage   | 5
+    %       | Percentage     | None;%;50;Damage  | 15 (10 + 50%)
+
+CONDITIONS:
+-----------
+    Type                | Example                          | Multiplier
+    --------------------|----------------------------------|------------------
+    None                | None;+;10;Damage                 | Always 1
+    RunnerType          | RunnerType:Hacker;+;5;Risk       | 1 if true, 0 if false
+    RunnerStat          | RunnerStat:muscle>=3;+;5;Damage  | floor(total/threshold)
+    NodeColor           | NodeColor:Red;+;100;Money        | 1 if true, 0 if false
+    NodeColorCombo      | NodeColorCombo:Red,Blue;+;200;Money | 1 if true, 0 if false
+    PrevDam             | PrevDam;+;5;Money                | Damage prevented
+    PrevRisk            | PrevRisk;+;3;Money               | Risk prevented
+
+STATS:
+------
+    Stat    | What It Affects              | Can Go Negative?
+    --------|------------------------------|------------------
+    Damage  | Mission harm/injuries        | No (min 0)
+    Risk    | Detection/exposure           | No (min 0)
+    Money   | Payment/rewards              | Yes (debt)
+    Grit    | Damage prevention (2:1)      | No (min 0)
+    Veil    | Risk prevention (2:1)        | No (min 0)
+
+RUNNER TYPES (for RunnerType condition):
+-----------------------------------------
+    Face    - Social/persuasion specialist
+    Muscle  - Combat/physical specialist
+    Hacker  - Tech/digital specialist
+    Ninja   - Stealth/infiltration specialist
+
+COLORS (for NodeColor/NodeColorCombo):
+---------------------------------------
+    Red, Yellow, Green, Blue, Purple, Grey
+
+CALCULATION ORDER:
+------------------
+    1. Standard effects (+, -, *, /)
+    2. Preliminary prevention (for conditions)
+    3. Percentage effects (%)
+    4. Prevention-based effects (PrevDam/PrevRisk)
+    5. Final prevention (Grit→Damage, Veil→Risk)
+
+PREVENTION FORMULA:
+-------------------
+    Damage Prevented = min(floor(Grit / 2), Damage)
+    Risk Prevented   = min(floor(Veil / 2), Risk)
+
+COPY-PASTE TEMPLATES:
+---------------------
+    Basic:              None;+;[amount];[stat]
+    Runner Synergy:     RunnerType:[type];+;[amount];[stat]
+    Stat Scaling:       RunnerStat:[stat]>=[threshold];+;[amount];[stat]
+    Color Synergy:      NodeColor:[color];+;[amount];[stat]
+    Percentage:         None;%;[amount];[stat]
+    Prevention Reward:  PrevDam;+;[amount];[stat]
+
+================================================================================
+FINAL NOTES
+================================================================================
+
+Remember:
+---------
+    - Test your effects in the editor before committing to full contracts
+    - Start simple and add complexity gradually
+    - Think about player choice: does this node create interesting decisions?
+    - Balance is iterative: playtest and adjust
+
+Common Questions:
+-----------------
+
+    Q: Can I use decimals in amounts?
+    A: Yes! None;+;2.5;Damage works fine.
+
+    Q: Can I have more than 2 effects per node?
+    A: No, each node has exactly Effect 1 and Effect 2. Make them count!
+
+    Q: What happens if a stat goes negative?
+    A: Only Money can be negative. Others stop at 0.
+
+    Q: Do Gate nodes have effects?
+    A: No, Gate nodes only have conditions, not effects.
+
+    Q: Can I combine multiple conditions?
+    A: No, each effect has ONE condition. Use multiple effects for multiple
+       conditions.
+
+    Q: What's better: +100 Money or %;100;Money?
+    A: Depends on context. +100 is consistent. %;100 scales (doubles current).
+
+Getting Help:
+-------------
+    If you create an effect and the CSV validator rejects it, read the error
+    message carefully. It will tell you which part is wrong and which row.
+
+    Common error messages:
+        "Invalid operator" → Check part 2, must be +, -, *, /, or %
+        "Invalid condition" → Check part 1, see Section 4 for valid types
+        "Invalid stat" → Check part 4, must be Damage/Risk/Money/Grit/Veil
+        "Must have exactly 4 parts" → Count your semicolons
+
+Good luck designing amazing contracts!
+
+================================================================================
+END OF NODE EFFECT SYNTAX GUIDE
+================================================================================

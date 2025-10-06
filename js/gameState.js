@@ -196,15 +196,40 @@ class GameState {
         // Reset pools
         this.currentPools = this.initializePools();
 
-        // Add effects from selected nodes
+        // PASS 1: Collect and separate effects by operator type
+        const standardEffects = [];
+        const percentageEffects = [];
+
         this.selectedNodes.forEach(nodeId => {
             const node = this.getNodeById(nodeId);
-            if (node) {
-                this.applyNodeEffects(node);
+            if (node && node.type !== 'Gate') {
+                // Separate effects by operator type
+                [node.effect1, node.effect2].forEach(effect => {
+                    if (!effect || effect.trim() === '') return;
+
+                    const parts = effect.split(';');
+                    if (parts.length >= 4) {
+                        const operator = parts[1];
+                        if (operator === '%') {
+                            percentageEffects.push(effect);
+                        } else {
+                            standardEffects.push(effect);
+                        }
+                    }
+                });
             }
         });
 
-        // Apply prevention mechanics after all effects are calculated
+        // PASS 2: Apply standard effects first (+, -, *, /)
+        standardEffects.forEach(effect => this.applyEffect(effect));
+
+        // PASS 3: Calculate preliminary prevention for prevention-based conditions
+        this.calculatePreventionAmounts();
+
+        // PASS 4: Apply percentage effects (after all base calculations)
+        percentageEffects.forEach(effect => this.applyEffect(effect));
+
+        // PASS 5: Apply final prevention mechanics (unchanged, runs last)
         this.applyPreventionMechanics();
 
         const endTime = performance.now();
@@ -213,6 +238,35 @@ class GameState {
         }
 
         return { ...this.currentPools };
+    }
+
+    /**
+     * Calculate prevention amounts based on current pool values
+     * This runs AFTER standard effects but BEFORE percentage effects
+     * Stores results in this.preventionData for use by prevention-based conditions
+     */
+    calculatePreventionAmounts() {
+        // Calculate maximum prevention based on current Grit/Veil
+        const maxDamagePrevention = Math.floor(this.currentPools.grit / 2);
+        const maxRiskPrevention = Math.floor(this.currentPools.veil / 2);
+
+        // Calculate actual prevention (capped at damage/risk values)
+        const actualDamagePrevented = Math.min(maxDamagePrevention, this.currentPools.damage);
+        const actualRiskPrevented = Math.min(maxRiskPrevention, this.currentPools.risk);
+
+        // Store for use by prevention-based conditions
+        // Note: This is preliminary data - final prevention happens in applyPreventionMechanics()
+        if (!this.preventionData) {
+            this.preventionData = {};
+        }
+
+        this.preventionData.preliminaryDamagePrevented = Math.max(0, actualDamagePrevented);
+        this.preventionData.preliminaryRiskPrevented = Math.max(0, actualRiskPrevented);
+
+        // Log for debugging
+        if (actualDamagePrevented > 0 || actualRiskPrevented > 0) {
+            console.log(`Preliminary prevention: ${actualDamagePrevented} damage, ${actualRiskPrevented} risk`);
+        }
     }
 
     /**
@@ -289,6 +343,12 @@ class GameState {
                     }
                     newValue = currentValue / effectiveAmount;
                     break;
+                case '%':
+                    // Percentage modification: current + (current * percentage/100)
+                    // effectiveAmount already includes condition multiplier
+                    const percentageMultiplier = effectiveAmount / 100;
+                    newValue = currentValue + (currentValue * percentageMultiplier);
+                    break;
                 default:
                     console.warn('Unknown operator in effect:', operator);
                     return;
@@ -323,11 +383,11 @@ class GameState {
         }
 
         try {
-            // RunnerType: Check if specific runner type is configured
+            // RunnerType: Count how many runners of this type are configured
             if (condition.startsWith('RunnerType:')) {
                 const requiredType = condition.split(':')[1];
-                const hasType = this.runners.some(runner => runner.type === requiredType);
-                return hasType ? 1 : 0;
+                const count = this.runners.filter(runner => runner.type === requiredType).length;
+                return count;
             }
 
             // RunnerStat: Calculate multiplier based on stat total divided by threshold
@@ -335,26 +395,60 @@ class GameState {
                 return this.evaluateRunnerStatCondition(condition);
             }
 
-            // NodeColor: Check if specific color nodes are selected (excludes Gate nodes)
+            // NodeColor: Count how many nodes of this color are selected (excludes Gate nodes)
             if (condition.startsWith('NodeColor:')) {
                 const requiredColor = condition.split(':')[1];
-                const hasColor = this.selectedNodes.some(nodeId => {
+                const count = this.selectedNodes.filter(nodeId => {
                     const node = this.getNodeById(nodeId);
                     return node && node.color === requiredColor && node.type !== 'Gate';
-                });
-                return hasColor ? 1 : 0;
+                }).length;
+                return count;
             }
 
-            // NodeColorCombo: Check if multiple specific colors are selected (excludes Gate nodes)
+            // NodeColorCombo: Count complete sets of the color combination
+            // For example, if you need Red,Blue and have 3 Red and 2 Blue, you have 2 complete sets
             if (condition.startsWith('NodeColorCombo:')) {
                 const requiredColors = condition.split(':')[1].split(',').map(c => c.trim());
-                const hasAllColors = requiredColors.every(color => {
-                    return this.selectedNodes.some(nodeId => {
+
+                // Count how many of each required color we have
+                const colorCounts = requiredColors.map(color => {
+                    return this.selectedNodes.filter(nodeId => {
                         const node = this.getNodeById(nodeId);
                         return node && node.color === color && node.type !== 'Gate';
-                    });
+                    }).length;
                 });
-                return hasAllColors ? 1 : 0;
+
+                // Return the minimum count (limiting factor for complete sets)
+                // If any required color has 0 nodes, the whole combo fails (returns 0)
+                return colorCounts.length > 0 ? Math.min(...colorCounts) : 0;
+            }
+
+            // PrevDam: Returns multiplier based on damage prevented by Grit
+            if (condition === 'PrevDam' || condition.startsWith('PrevDam;')) {
+                // Handle both "PrevDam" and "PrevDam;" formats for flexibility
+                if (!this.preventionData || typeof this.preventionData.preliminaryDamagePrevented !== 'number') {
+                    return 0; // No prevention data available
+                }
+
+                const damagePrevented = this.preventionData.preliminaryDamagePrevented;
+
+                // Return the amount of damage prevented as the multiplier
+                // If 3 damage prevented, effects using PrevDam will be 3x stronger
+                return Math.max(0, damagePrevented);
+            }
+
+            // PrevRisk: Returns multiplier based on risk prevented by Veil
+            if (condition === 'PrevRisk' || condition.startsWith('PrevRisk;')) {
+                // Handle both "PrevRisk" and "PrevRisk;" formats for flexibility
+                if (!this.preventionData || typeof this.preventionData.preliminaryRiskPrevented !== 'number') {
+                    return 0; // No prevention data available
+                }
+
+                const riskPrevented = this.preventionData.preliminaryRiskPrevented;
+
+                // Return the amount of risk prevented as the multiplier
+                // If 4 risk prevented, effects using PrevRisk will be 4x stronger
+                return Math.max(0, riskPrevented);
             }
 
             // Log unknown condition types for debugging

@@ -635,15 +635,18 @@ class CSVLoader {
             if (!condition || condition.trim() === '') {
                 errors.push(`Row ${rowNumber} ${columnName}: Condition part cannot be empty`);
             } else {
-                const validConditionTypes = ['None', 'RunnerType:', 'RunnerStat:', 'NodeColor:', 'NodeColorCombo:'];
-                const isValidCondition = condition === 'None' || validConditionTypes.some(type => condition.startsWith(type));
+                const validConditionTypes = ['None', 'RunnerType:', 'RunnerStat:', 'NodeColor:', 'NodeColorCombo:', 'PrevDam', 'PrevRisk'];
+                const isValidCondition = condition === 'None' ||
+                                         condition === 'PrevDam' ||
+                                         condition === 'PrevRisk' ||
+                                         validConditionTypes.some(type => condition.startsWith(type));
                 if (!isValidCondition) {
-                    errors.push(`Row ${rowNumber} ${columnName}: Invalid condition '${condition}'. Must be 'None' or start with: ${validConditionTypes.slice(1).join(', ')}`);
+                    errors.push(`Row ${rowNumber} ${columnName}: Invalid condition '${condition}'. Must be 'None', 'PrevDam', 'PrevRisk', or start with: RunnerType:, RunnerStat:, NodeColor:, NodeColorCombo:`);
                 }
             }
 
             // Validate operator
-            const validOperators = ['+', '-', '*', '/'];
+            const validOperators = ['+', '-', '*', '/', '%'];
             if (!validOperators.includes(operator)) {
                 errors.push(`Row ${rowNumber} ${columnName}: Invalid operator '${operator}'. Must be one of: ${validOperators.join(', ')}`);
             }

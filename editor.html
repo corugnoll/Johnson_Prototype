@@ -95,12 +95,16 @@
 
                         <div class="property-group" id="effect1Group">
                             <label for="nodeEffect1">Effect 1:</label>
-                            <input type="text" id="nodeEffect1" placeholder="Condition;Operator;Amount;Stat">
+                            <input type="text" id="nodeEffect1" placeholder="Examples: None;+;5;Damage OR None;%;10;Money OR PrevDam;+;5;Money">
                         </div>
 
                         <div class="property-group" id="effect2Group">
                             <label for="nodeEffect2">Effect 2:</label>
-                            <input type="text" id="nodeEffect2" placeholder="Condition;Operator;Amount;Stat">
+                            <input type="text" id="nodeEffect2" placeholder="Examples: RunnerType:Hacker;-;2;Risk OR PrevRisk;%;10;Grit">
+                            <small style="display:block; color:#888; font-size:11px; margin-top:4px;">
+                                <strong>Operators:</strong> + (add), - (subtract), * (multiply), / (divide), % (percentage)<br>
+                                <strong>Conditions:</strong> None, RunnerType:[type], RunnerStat:[stat]>=[threshold], NodeColor:[color], NodeColorCombo:[colors], PrevDam (damage prevented), PrevRisk (risk prevented)
+                            </small>
                         </div>
 
                         <div class="property-group" id="gateConditionGroup" style="display: none;">
