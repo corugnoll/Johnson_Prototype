@@ -1,0 +1,5 @@
+Roll Range,Effect
+1-10,Reduce 15
+6-50,Reduce 10
+51-90,Reduce 5
+91-100,No Effect

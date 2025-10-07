@@ -515,62 +515,6 @@ class CSVLoader {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    /**
-     * Get sample data structure for testing
-     * @returns {Array} Sample contract data
-     */
-    getSampleData() {
-        return [
-            {
-                'Node ID': '1',
-                'Description': 'Start Node',
-                'Effect Desc': '+2 Grit',
-                'Effect 1': 'None;+;2;Grit',
-                'Effect 2': '',
-                'Type': 'Effect',
-                'Color': 'Red',
-                'Layer': '0',
-                'Slot': 'CE',
-                'Connections': '2;3'
-            },
-            {
-                'Node ID': '2',
-                'Description': 'Choice A',
-                'Effect Desc': '+2 Risk',
-                'Effect 1': 'None;+;2;Risk',
-                'Effect 2': '',
-                'Type': 'Effect',
-                'Color': 'Green',
-                'Layer': '1',
-                'Slot': 'U1',
-                'Connections': '4'
-            },
-            {
-                'Node ID': '3',
-                'Description': 'Choice B',
-                'Effect Desc': '+2 Dam',
-                'Effect 1': 'None;+;2;Damage',
-                'Effect 2': '',
-                'Type': 'Effect',
-                'Color': 'Purple',
-                'Layer': '1',
-                'Slot': 'D1',
-                'Connections': '4'
-            },
-            {
-                'Node ID': '4',
-                'Description': 'Final Node',
-                'Effect Desc': '+2 Veil',
-                'Effect 1': 'None;+;2;Veil',
-                'Effect 2': '',
-                'Type': 'Effect',
-                'Color': 'Blue',
-                'Layer': '2',
-                'Slot': 'CE',
-                'Connections': ''
-            }
-        ];
-    }
 
     /**
      * Convert parsed data to internal game format

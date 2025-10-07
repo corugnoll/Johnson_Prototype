@@ -460,14 +460,6 @@ class EditorMain {
         event.target.value = '';
     }
 
-    /**
-     * Load contract from CSV content (deprecated - now handled by FileManager)
-     * @deprecated Use FileManager.importContract() instead
-     */
-    loadContractFromCSV(csvContent) {
-        console.warn('loadContractFromCSV is deprecated. Use FileManager.importContract() instead.');
-        // This method is kept for backward compatibility but should not be used
-    }
 
     /**
      * Save the current contract

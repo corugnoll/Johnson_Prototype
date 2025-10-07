@@ -1,0 +1,43 @@
+"Node ID","Description","Effect Desc","Effect 1","Effect 2","Type","Color","X","Y","Width","Height","GateCondition","Connections"
+"NODE002","Blast Through 
+Entrance Area","+2 Grit","None;+;2;Grit","","Normal","Red","240.0","375.0","103.0","64.0","","NODE008"
+"NODE001","Server Farm Entrance","+2 Risk
++1 Damage","None;+;2;Risk","None;+;1;Damage","Normal","Grey","-75.0","465.0","149.7","64.0","","NODE020,NODE002,NODE006,NODE007,NODE024"
+"NODE003","Gain Mainframe Access
+and disable security","+1 Grit","None;+;1;Grit","","Normal","Blue","135.0","210.0","160.6","64.0","","NODE004"
+"NODE004","Search for AI Core Location
+in Room Database","Node effect description","None;+;1;Grit","","Normal","Blue","450.0","210.0","184.8","64.0","","NODE022"
+"NODE005","Sneak Into Core Room","+2 Veil","None;+;2;Veil","","Normal","Purple","915.0","225.0","154.4","60.0","","NODE012"
+"NODE006","Distract Patrols,
+then slip past","+2 Veil","None;+;2;Veil","","Normal","Purple","240.0","480.0","110.8","64.0","","NODE008"
+"NODE007","Disable Back Entrance
+Biometric Lock","+2 Veil","None;+;2;Veil","","Normal","Blue","210.0","585.0","153.6","64.0","","NODE008"
+"NODE008","Main Building
+(Locate AI Core)","+2 Risk
++1 Damage","None;+;2;Risk","None;+;1;Damage","Normal","Grey","450.0","465.0","114.7","80.0","","NODE009,NODE021,NODE011"
+"NODE009","Take Down Security Guards
+and copy Digital Map
+from them","+2 Grit for each Muscle","RunnerType:Muscle;+;2;Grit","","Normal","Red","645.0","345.0","185.5","80.0","","NODE012"
+"NODE010","Convince Caretaker to 
+show you the way","+2 Veil","None;+;2;Veil","","Normal","Yellow","750.0","480.0","155.2","64.0","","NODE012"
+"NODE011","Eavesdrop on
+Technicians","+2 Veil for each Ninja","RunnerType:Ninja;+;2;Veil","","Normal","Purple","630.0","600.0","125.7","64.0","","NODE012"
+"NODE012","AI Core Room","+2 Risk
++1 Damage","None;+;2;Risk","None;+;1;Damage","Normal","Grey","1005.0","480.0","100.7","64.0","","NODE013,NODE014"
+"NODE013","Blow Up the Core","+3 Grit","None;+;3;Grit","","Normal","Red","1155.0","390.0","121.7","60.0","","NODE015"
+"NODE014","Create Copy of AI
+on Secure Shard","+3 Veil","None;+;3;Veil","","Normal","Blue","1170.0","570.0","123.3","64.0","","NODE015"
+"NODE015","Escape after Core
+Security Alert Triggered","Node effect description","None;+;2;Risk","None;+;1;Damage","Normal","Grey","1365.0","480.0","158.5","64.0","","NODE016,NODE017,NODE018"
+"NODE016","Fight your way out","+1 Grit for each 
+3 Muscle stat","RunnerStat:muscle>3;+;1;Grit","","Normal","Red","1590.0","330.0","126.4","64.0","","NODE019"
+"NODE017","Stick to the Shadows
+and Sneak Out","+1 Veil for each 3 Stealth Stat","RunnerStat:stealth>3;+;1;Veil","","Normal","Purple","1590.0","480.0","170.4","64.0","","NODE019"
+"NODE018","Hack and take over
+Security Drones","+1 Grit and +1 Veil for each 5 Hacker Stat","RunnerStat:hacker>5;+;1;Veil","RunnerStat:hacker>5;+;1;Grit","Normal","Blue","1590.0","615.0","168.1","80.0","","NODE019"
+"NODE019","End","No Effect","None;+;0;Risk","","Normal","Grey","1860.0","480.0","80.0","60.0","",""
+"NODE020","","≥10 Hacking","","","Gate","Blue","-30.0","300.0","80.0","60.0","RunnerStat:hacker;10","NODE003"
+"NODE021","","≥ Face","","","Gate","Yellow","630.0","480.0","80.0","60.0","RunnerType:face;1","NODE010"
+"NODE022","","≥1 Ninja","","","Gate","Purple","735.0","210.0","80.0","60.0","RunnerType:ninja;1","NODE005"
+"Gate1","New Node","Node effect description","None;+;0;Risk","","Normal","Green","-75.0","675.0","134.5","60.0","",""
+"NODE024","","Node effect description","","","Gate","Green","210.0","690.0","134.5","60.0","Node:Gate1;0","NODE011"

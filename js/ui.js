@@ -48,9 +48,6 @@ class UIManager {
 
         this.ctx = this.canvas.getContext('2d');
         this.resizeCanvas();
-
-        // Draw placeholder content
-        this.drawPlaceholder();
     }
 
     /**
@@ -83,90 +80,6 @@ class UIManager {
         this.canvas.style.height = height + 'px';
     }
 
-    /**
-     * Draw placeholder content on canvas
-     */
-    drawPlaceholder() {
-        if (!this.ctx) return;
-
-        const width = this.canvas.width;
-        const height = this.canvas.height;
-
-        // Clear canvas
-        this.ctx.fillStyle = '#1a1a2e';
-        this.ctx.fillRect(0, 0, width, height);
-
-        // Draw border
-        this.ctx.strokeStyle = '#533a7b';
-        this.ctx.lineWidth = 2;
-        this.ctx.strokeRect(1, 1, width - 2, height - 2);
-
-        // Draw placeholder text
-        this.ctx.fillStyle = '#bbbbbb';
-        this.ctx.font = '16px Segoe UI';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText('Contract Tree Visualization', width / 2, height / 2 - 10);
-        this.ctx.fillText('(Coming in next milestone)', width / 2, height / 2 + 10);
-
-        // Draw some placeholder nodes
-        this.drawPlaceholderNodes();
-    }
-
-    /**
-     * Draw placeholder nodes to show layout concept
-     */
-    drawPlaceholderNodes() {
-        if (!this.ctx) return;
-
-        const width = this.canvas.width;
-        const height = this.canvas.height;
-
-        // Node positions for demonstration
-        const nodes = [
-            { x: width / 2, y: height * 0.2, color: '#FF6467', label: 'Start' },
-            { x: width * 0.3, y: height * 0.5, color: '#27AE60', label: 'Choice A' },
-            { x: width * 0.7, y: height * 0.5, color: '#9B59B6', label: 'Choice B' },
-            { x: width / 2, y: height * 0.8, color: '#51A2FF', label: 'End' }
-        ];
-
-        const nodeRadius = 20;
-
-        // Draw connections
-        this.ctx.strokeStyle = '#533a7b';
-        this.ctx.lineWidth = 2;
-        this.ctx.beginPath();
-        this.ctx.moveTo(nodes[0].x, nodes[0].y + nodeRadius);
-        this.ctx.lineTo(nodes[1].x, nodes[1].y - nodeRadius);
-        this.ctx.moveTo(nodes[0].x, nodes[0].y + nodeRadius);
-        this.ctx.lineTo(nodes[2].x, nodes[2].y - nodeRadius);
-        this.ctx.moveTo(nodes[1].x, nodes[1].y + nodeRadius);
-        this.ctx.lineTo(nodes[3].x, nodes[3].y - nodeRadius);
-        this.ctx.moveTo(nodes[2].x, nodes[2].y + nodeRadius);
-        this.ctx.lineTo(nodes[3].x, nodes[3].y - nodeRadius);
-        this.ctx.stroke();
-
-        // Draw nodes
-        nodes.forEach(node => {
-            // Node circle
-            this.ctx.fillStyle = node.color;
-            this.ctx.beginPath();
-            this.ctx.arc(node.x, node.y, nodeRadius, 0, 2 * Math.PI);
-            this.ctx.fill();
-
-            // Node border
-            this.ctx.strokeStyle = '#ffffff';
-            this.ctx.lineWidth = 2;
-            this.ctx.stroke();
-
-            // Node label
-            this.ctx.fillStyle = '#ffffff';
-            this.ctx.font = '10px Segoe UI';
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            this.ctx.fillText(node.label, node.x, node.y);
-        });
-    }
 
     /**
      * Handle canvas resize events
@@ -174,7 +87,6 @@ class UIManager {
     handleCanvasResize() {
         if (this.canvas) {
             this.resizeCanvas();
-            this.drawPlaceholder();
         }
     }
 
@@ -441,10 +353,7 @@ class UIManager {
         const fileInput = document.getElementById('contract-file');
         if (fileInput) fileInput.value = '';
 
-        // Reset canvas
-        if (this.canvas) {
-            this.drawPlaceholder();
-        }
+        // Canvas will be cleared when next contract is loaded
     }
 
     /**
@@ -586,10 +495,7 @@ class UIManager {
         const fileInput = document.getElementById('contract-file');
         if (fileInput) fileInput.value = '';
 
-        // Reset canvas
-        if (this.canvas) {
-            this.drawPlaceholder();
-        }
+        // Canvas will be cleared when next contract is loaded
 
         // Clear prevention display
         const preventionElement = document.getElementById('prevention-info');
