@@ -169,7 +169,9 @@ class FileManager {
 
             // Calculate canvas dimensions for nodes
             nodes.forEach(node => {
-                this.nodeManager.calculateNodeDimensions(node);
+                const dimensions = TextUtils.calculateNodeDimensions(node);
+                node.width = dimensions.width;
+                node.height = dimensions.height;
             });
 
             const connectionCount = this.connectionManager ? this.connectionManager.getAllConnections().length : 0;
