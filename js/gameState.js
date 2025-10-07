@@ -775,6 +775,11 @@ class GameState {
                 return false;
             }
 
+            // Node condition (check if specific nodes are selected)
+            if (conditionPart.startsWith('Node:')) {
+                return this.evaluateNodeGateCondition(conditionPart, threshold);
+            }
+
             // RunnerType condition
             if (conditionPart.startsWith('RunnerType:')) {
                 return this.evaluateRunnerTypeGateCondition(conditionPart, threshold);
@@ -791,6 +796,37 @@ class GameState {
         } catch (error) {
             console.error(`Error evaluating gate condition for ${node.id}:`, error);
             return false;
+        }
+    }
+
+    /**
+     * Evaluate Node gate condition
+     * @param {string} conditionPart - Condition part (e.g., "Node:NODE001,NODE002")
+     * @param {number} threshold - Required count (0 = ALL nodes must be selected, >0 = at least threshold nodes)
+     * @returns {boolean} True if condition is met
+     */
+    evaluateNodeGateCondition(conditionPart, threshold) {
+        // Extract node IDs from condition
+        const nodeIdsStr = conditionPart.substring('Node:'.length);
+        const requiredNodeIds = nodeIdsStr.split(',').map(id => id.trim()).filter(id => id !== '');
+
+        if (requiredNodeIds.length === 0) {
+            console.warn('Node gate condition has no node IDs specified');
+            return false;
+        }
+
+        // Count how many of the required nodes are selected
+        const selectedCount = requiredNodeIds.filter(nodeId => {
+            return this.selectedNodes.includes(nodeId);
+        }).length;
+
+        // Evaluate based on threshold
+        if (threshold === 0) {
+            // Threshold of 0 means ALL specified nodes must be selected (AND logic)
+            return selectedCount === requiredNodeIds.length;
+        } else {
+            // Threshold > 0 means at least that many nodes must be selected
+            return selectedCount >= threshold;
         }
     }
 

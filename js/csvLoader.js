@@ -823,8 +823,29 @@ class CSVLoader {
                 errors.push(`Row ${rowNumber}: Gate condition threshold must be non-negative integer`);
             }
 
-            if (!conditionPart.startsWith('RunnerType:') && !conditionPart.startsWith('RunnerStat:')) {
-                errors.push(`Row ${rowNumber}: Gate condition must start with 'RunnerType:' or 'RunnerStat:'`);
+            // Validate condition type
+            if (conditionPart.startsWith('Node:')) {
+                // Validate Node condition format
+                const nodeIdsStr = conditionPart.substring('Node:'.length);
+                const nodeIds = nodeIdsStr.split(',').map(id => id.trim()).filter(id => id !== '');
+
+                if (nodeIds.length === 0) {
+                    errors.push(`Row ${rowNumber}: Node gate condition must specify at least one node ID`);
+                }
+
+                // Validate each node ID format
+                nodeIds.forEach(nodeId => {
+                    if (!/^[a-zA-Z0-9_-]+$/.test(nodeId)) {
+                        errors.push(`Row ${rowNumber}: Invalid node ID '${nodeId}' in gate condition. Must contain only letters, numbers, underscores, and hyphens`);
+                    }
+                });
+
+            } else if (conditionPart.startsWith('RunnerType:')) {
+                // Existing RunnerType validation (already passes through)
+            } else if (conditionPart.startsWith('RunnerStat:')) {
+                // Existing RunnerStat validation (already passes through)
+            } else {
+                errors.push(`Row ${rowNumber}: Gate condition must start with 'Node:', 'RunnerType:', or 'RunnerStat:'`);
             }
 
         } catch (error) {

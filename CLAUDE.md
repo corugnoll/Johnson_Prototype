@@ -214,6 +214,62 @@ ColorForEach;%;20;Damage,Add 20% damage per unique color selected
 - 4 stats per runner: FaceStat, MuscleStat, HackerStat, NinjaStat
 - Automatic totaling and validation of integer inputs
 
+### Gate Nodes
+Gate nodes are special nodes that require both connection availability AND a gate condition to be met before becoming available. They use the `GateCondition` CSV column.
+
+**Gate Condition Format**: `{ConditionType}:{Params};{Threshold}`
+
+**Gate Condition Types:**
+
+**Node:**
+Checks if specific nodes are already selected.
+
+- **Format**: `Node:{NodeID1},{NodeID2},...;{Amount}`
+- **Threshold = 0**: ALL listed nodes must be selected (AND logic)
+- **Threshold > 0**: At least {threshold} of the listed nodes must be selected
+
+**Examples:**
+```csv
+GateCondition,Description
+Node:NODE022,NODE001;0,Requires both NODE022 AND NODE001 to be selected
+Node:NODE023,NODE003,NODE004;2,Requires at least 2 of the 3 nodes to be selected
+Node:NODE005;0,Requires NODE005 to be selected (single node case)
+Node:NODE010,NODE011,NODE012;1,Requires at least 1 of the 3 nodes to be selected
+```
+
+**RunnerType:**
+Checks if specific runner types are configured.
+
+- **Format**: `RunnerType:{Type1},{Type2},...;{Count}`
+- **Threshold**: Minimum number of runners matching any of the listed types
+
+**Examples:**
+```csv
+GateCondition,Description
+RunnerType:Hacker;1,Requires at least 1 Hacker runner
+RunnerType:Hacker,Ninja;2,Requires at least 2 runners that are either Hacker or Ninja
+RunnerType:Face;3,Requires 3 Face runners (impossible with only 3 slots)
+```
+
+**RunnerStat:**
+Checks if runner stats meet a threshold.
+
+- **Format**: `RunnerStat:{Stat1},{Stat2},...;{MinTotal}`
+- **Threshold**: Minimum total of the specified stats across all runners
+
+**Examples:**
+```csv
+GateCondition,Description
+RunnerStat:muscle;6,Requires total muscle stat of 6+ across all runners
+RunnerStat:hacker,ninja;10,Requires total hacker+ninja stats of 10+
+RunnerStat:face;3,Requires total face stat of 3+
+```
+
+**Gate Node Availability Logic:**
+Gate nodes become available when:
+1. At least one connected predecessor node is selected (connection availability)
+2. AND the gate condition evaluates to true
+
 ### UI Layout Requirements
 Four main sections using CSS Grid/Flexbox:
 - **Game Board** (center): Contract perk tree with synergy nodes

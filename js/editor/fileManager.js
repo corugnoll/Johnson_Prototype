@@ -527,7 +527,23 @@ class FileManager {
             }
 
             // Validate condition type
-            if (conditionPart.startsWith('RunnerType:')) {
+            if (conditionPart.startsWith('Node:')) {
+                // Validate Node condition format
+                const nodeIdsStr = conditionPart.substring('Node:'.length);
+                const nodeIds = nodeIdsStr.split(',').map(id => id.trim()).filter(id => id !== '');
+
+                if (nodeIds.length === 0) {
+                    return { valid: false, message: 'Node gate condition requires at least one node ID' };
+                }
+
+                // Validate each node ID format
+                for (const nodeId of nodeIds) {
+                    if (!/^[a-zA-Z0-9_-]+$/.test(nodeId)) {
+                        return { valid: false, message: `Invalid node ID '${nodeId}' in gate condition. Must contain only letters, numbers, underscores, and hyphens` };
+                    }
+                }
+            }
+            else if (conditionPart.startsWith('RunnerType:')) {
                 const types = conditionPart.substring('RunnerType:'.length).split(',').map(t => t.trim());
                 const validRunnerTypes = ['Face', 'Muscle', 'Hacker', 'Ninja', 'face', 'muscle', 'hacker', 'ninja'];
 
@@ -556,7 +572,7 @@ class FileManager {
                 }
             }
             else {
-                return { valid: false, message: 'Gate condition must start with RunnerType: or RunnerStat:' };
+                return { valid: false, message: 'Gate condition must start with Node:, RunnerType:, or RunnerStat:' };
             }
 
         } catch (error) {
