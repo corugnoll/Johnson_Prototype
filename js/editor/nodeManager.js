@@ -71,7 +71,9 @@ class NodeManager {
         };
 
         // Calculate proper dimensions based on content
-        this.calculateNodeDimensions(node);
+        const dimensions = TextUtils.calculateNodeDimensions(node);
+        node.width = dimensions.width;
+        node.height = dimensions.height;
 
         this.nodes.push(node);
         this.nextNodeId++;
@@ -207,7 +209,9 @@ class NodeManager {
 
         // Handle special cases
         if (property === 'description' || property === 'effectDesc') {
-            this.calculateNodeDimensions(node);
+            const dimensions = TextUtils.calculateNodeDimensions(node);
+        node.width = dimensions.width;
+        node.height = dimensions.height;
         } else if (property === 'connections') {
             // Parse connections string into array
             if (typeof value === 'string') {
@@ -221,83 +225,7 @@ class NodeManager {
         return true;
     }
 
-    /**
-     * Calculate node dimensions based on content (both description and effect description)
-     */
-    calculateNodeDimensions(node) {
-        // Create a temporary canvas to measure text
-        const tempCanvas = document.createElement('canvas');
-        const ctx = tempCanvas.getContext('2d');
-
-        const padding = 6;
-        const maxWidth = 200; // Maximum node width
-        const lineHeight = 16;
-        const separatorHeight = 4;
-        const minWidth = 80;
-        const minHeight = 60;
-
-        // Calculate available width for text
-        const availableWidth = maxWidth - padding * 2;
-
-        // For Gate nodes, only process effectDesc
-        if (node.type === 'Gate') {
-            ctx.font = '12px Arial';
-            const effectLines = this.processTextWithLinebreaks(node.effectDesc || '', availableWidth, ctx, 12);
-            const effectWidth = Math.max(...effectLines.map(line => ctx.measureText(line).width));
-
-            const totalTextHeight = effectLines.length * lineHeight;
-
-            node.width = Math.max(minWidth, effectWidth + padding * 2);
-            node.height = Math.max(minHeight, totalTextHeight + padding * 2);
-        } else {
-            // Existing logic for regular nodes (description + effectDesc)
-            ctx.font = 'bold 14px Arial';
-            const descLines = this.processTextWithLinebreaks(node.description || '', availableWidth, ctx, 14);
-            const descWidth = Math.max(...descLines.map(line => ctx.measureText(line).width));
-
-            ctx.font = '12px Arial';
-            const effectLines = this.processTextWithLinebreaks(node.effectDesc || '', availableWidth, ctx, 12);
-            const effectWidth = Math.max(...effectLines.map(line => ctx.measureText(line).width));
-
-            const maxTextWidth = Math.max(descWidth, effectWidth);
-            const hasEffect = effectLines.length > 0 && effectLines[0].trim() !== '';
-
-            const totalTextHeight = (descLines.length * lineHeight) +
-                                   (hasEffect ? separatorHeight + (effectLines.length * lineHeight) : 0);
-
-            node.width = Math.max(minWidth, maxTextWidth + padding * 2);
-            node.height = Math.max(minHeight, totalTextHeight + padding * 2);
-        }
-
-        return { width: node.width, height: node.height };
-    }
-
-    /**
-     * Wrap text to fit within specified width
-     */
-    wrapText(ctx, text, maxWidth) {
-        const words = text.split(' ');
-        const lines = [];
-        let currentLine = '';
-
-        for (let word of words) {
-            const testLine = currentLine + (currentLine ? ' ' : '') + word;
-            const metrics = ctx.measureText(testLine);
-
-            if (metrics.width > maxWidth && currentLine) {
-                lines.push(currentLine);
-                currentLine = word;
-            } else {
-                currentLine = testLine;
-            }
-        }
-
-        if (currentLine) {
-            lines.push(currentLine);
-        }
-
-        return lines.length > 0 ? lines : [text];
-    }
+    // Text processing methods removed - now using shared TextUtils utility (js/utils/textUtils.js)
 
     /**
      * Draw a single node with main game layout structure
@@ -414,7 +342,7 @@ class NodeManager {
         const lineHeight = 16;
 
         // Process effect description text with linebreak support
-        const effectText = this.processTextWithLinebreaks(node.effectDesc || '', availableWidth, ctx, fontSize);
+        const effectText = TextUtils.processTextWithLinebreaks(node.effectDesc || '', availableWidth, ctx, fontSize);
 
         // Calculate vertical centering
         const totalTextHeight = effectText.length * lineHeight;
@@ -439,8 +367,8 @@ class NodeManager {
         const availableWidth = pos.width - (padding * 2);
 
         // Process text with linebreak support
-        const descriptionText = this.processTextWithLinebreaks(node.description || '', availableWidth, ctx, 14);
-        const effectText = this.processTextWithLinebreaks(node.effectDesc || '', availableWidth, ctx, 12);
+        const descriptionText = TextUtils.processTextWithLinebreaks(node.description || '', availableWidth, ctx, 14);
+        const effectText = TextUtils.processTextWithLinebreaks(node.effectDesc || '', availableWidth, ctx, 12);
 
         // Font configuration matching main game
         const primaryFontSize = 14;
@@ -493,31 +421,6 @@ class NodeManager {
         }
     }
 
-    /**
-     * Process text with linebreak support and word wrapping
-     */
-    processTextWithLinebreaks(text, maxWidth, ctx, fontSize) {
-        if (!text) return [''];
-
-        // Set font for measurement
-        ctx.font = `${fontSize}px Arial`;
-
-        // Split by explicit linebreaks first
-        const paragraphs = text.split(/\r?\n/);
-        const result = [];
-
-        paragraphs.forEach(paragraph => {
-            if (paragraph.trim() === '') {
-                result.push(''); // Preserve empty lines
-            } else {
-                // Word wrap each paragraph
-                const wrappedLines = this.wrapText(ctx, paragraph, maxWidth);
-                result.push(...wrappedLines);
-            }
-        });
-
-        return result.length > 0 ? result : [''];
-    }
 
     /**
      * Get contrasting text color for background

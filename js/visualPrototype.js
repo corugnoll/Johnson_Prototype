@@ -162,7 +162,7 @@ class VisualPrototypeRenderer {
                 height = node.height;
             } else {
                 // Calculate dimensions based on text content (legacy contracts)
-                const dimensions = this.calculateOptimalNodeSize(node);
+                const dimensions = TextUtils.calculateNodeDimensions(node);
                 width = dimensions.width;
                 height = dimensions.height;
             }
@@ -194,69 +194,7 @@ class VisualPrototypeRenderer {
         }
     }
 
-    /**
-     * Calculate optimal node size based on text content (editor-compatible approach)
-     * @param {VisualNode} node - Node to calculate size for
-     * @returns {Object} Optimal width and height
-     * Updated 2025-09-30: Unified with editor text rendering system
-     */
-    calculateOptimalNodeSize(node) {
-        // MATCH EDITOR EXACTLY: Use same constants
-        const padding = 6;              // Editor value (was 20)
-        const maxWidth = 200;           // Editor value (was 300)
-        const lineHeight = 16;          // Editor value (was 20)
-        const separatorHeight = 4;      // Editor value (was 8)
-        const minWidth = 80;            // Keep same
-        const minHeight = 60;           // Keep same
-
-        // Create temporary canvas for clean measurements (like editor)
-        const tempCanvas = document.createElement('canvas');
-        const ctx = tempCanvas.getContext('2d');
-
-        // Calculate available width for text (accounting for padding)
-        const availableWidth = maxWidth - padding * 2;
-
-        // NEW: For gate nodes, only calculate based on effectDescription
-        if (node.type === 'Gate') {
-            ctx.font = '12px Arial';
-            const effectLines = this.processTextWithLinebreaks(node.effectDescription || '', availableWidth, ctx, 12);
-            const effectWidth = Math.max(...effectLines.map(line => ctx.measureText(line).width));
-
-            const totalTextHeight = effectLines.length * lineHeight;
-
-            const finalWidth = Math.max(minWidth, effectWidth + padding * 2);
-            const finalHeight = Math.max(minHeight, totalTextHeight + padding * 2);
-
-            return { width: finalWidth, height: finalHeight };
-        }
-
-        // Existing logic for regular nodes
-        // Process description text with linebreaks (set font FIRST)
-        ctx.font = 'bold 14px Arial';
-        const descLines = this.processTextWithLinebreaks(node.description || '', availableWidth, ctx, 14);
-        const descWidth = Math.max(...descLines.map(line => ctx.measureText(line).width));
-
-        // Process effect description text with linebreaks (set font FIRST)
-        ctx.font = '12px Arial';
-        const effectLines = this.processTextWithLinebreaks(node.effectDescription || '', availableWidth, ctx, 12);
-        const effectWidth = Math.max(...effectLines.map(line => ctx.measureText(line).width));
-
-        // Calculate dimensions with precise height calculation (MATCH EDITOR)
-        const maxTextWidth = Math.max(descWidth, effectWidth);
-        const hasEffect = effectLines.length > 0 && effectLines[0].trim() !== '';
-
-        // CRITICAL: Calculate text height exactly as in editor
-        const totalTextHeight = (descLines.length * lineHeight) +
-                               (hasEffect ? separatorHeight + (effectLines.length * lineHeight) : 0);
-
-        // Calculate final dimensions (MATCH EDITOR - no extraVerticalSpace)
-        const finalWidth = Math.max(minWidth, maxTextWidth + padding * 2);
-        const finalHeight = Math.max(minHeight, totalTextHeight + padding * 2);
-
-        return { width: finalWidth, height: finalHeight };
-    }
-
-    // Removed duplicate text processing functions - now using unified approach
+    // Text processing methods removed - now using shared TextUtils utility (js/utils/textUtils.js)
 
     /**
      * Legacy positioning methods removed - now using direct X,Y coordinates
@@ -519,7 +457,7 @@ class VisualPrototypeRenderer {
 
         // Process effect description text
         tempCtx.font = `${fontSize}px Arial`;
-        const effectText = this.processTextWithLinebreaks(
+        const effectText = TextUtils.processTextWithLinebreaks(
             node.effectDescription || '',
             availableWidth,
             tempCtx,
@@ -580,7 +518,7 @@ class VisualPrototypeRenderer {
 
         // Process text with linebreak support (set font FIRST on temp context)
         tempCtx.font = 'bold 14px Arial';
-        const descriptionText = this.processTextWithLinebreaks(
+        const descriptionText = TextUtils.processTextWithLinebreaks(
             node.description || '',
             availableWidth,
             tempCtx,
@@ -588,7 +526,7 @@ class VisualPrototypeRenderer {
         );
 
         tempCtx.font = '12px Arial';
-        const effectText = this.processTextWithLinebreaks(
+        const effectText = TextUtils.processTextWithLinebreaks(
             node.effectDescription || '',
             availableWidth,
             tempCtx,
@@ -640,67 +578,6 @@ class VisualPrototypeRenderer {
         }
     }
 
-    /**
-     * Process text with linebreak support and word wrapping (editor-compatible)
-     * @param {string} text - Text to process
-     * @param {number} maxWidth - Maximum width in pixels
-     * @param {CanvasRenderingContext2D} ctx - Canvas context for measurement
-     * @param {number} fontSize - Font size for measurement
-     * @returns {Array<string>} Array of text lines
-     */
-    processTextWithLinebreaks(text, maxWidth, ctx, fontSize) {
-        if (!text) return [''];
-
-        // MATCH EDITOR: Set font on context for accurate measurement
-        ctx.font = `${fontSize}px Arial`;
-
-        // Split by explicit linebreaks first
-        const paragraphs = text.split(/\r?\n/);
-        const result = [];
-
-        paragraphs.forEach(paragraph => {
-            if (paragraph.trim() === '') {
-                result.push(''); // Preserve empty lines
-            } else {
-                // Word wrap each paragraph
-                const wrappedLines = this.wrapText(ctx, paragraph, maxWidth);
-                result.push(...wrappedLines);
-            }
-        });
-
-        return result.length > 0 ? result : [''];
-    }
-
-    /**
-     * Wrap text to fit within specified width (editor-compatible)
-     * @param {CanvasRenderingContext2D} ctx - Canvas context for measurement
-     * @param {string} text - Text to wrap
-     * @param {number} maxWidth - Maximum width in pixels
-     * @returns {Array<string>} Array of wrapped text lines
-     */
-    wrapText(ctx, text, maxWidth) {
-        const words = text.split(' ');
-        const lines = [];
-        let currentLine = '';
-
-        for (let word of words) {
-            const testLine = currentLine + (currentLine ? ' ' : '') + word;
-            const metrics = ctx.measureText(testLine);
-
-            if (metrics.width > maxWidth && currentLine) {
-                lines.push(currentLine);
-                currentLine = word;
-            } else {
-                currentLine = testLine;
-            }
-        }
-
-        if (currentLine) {
-            lines.push(currentLine);
-        }
-
-        return lines.length > 0 ? lines : [text];
-    }
 
     /**
      * Render a synergy node with special styling
