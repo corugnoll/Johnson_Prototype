@@ -1,4 +1,7 @@
 Roll Range,Effect
 1-10,Death
-11-60,Injury
-61-100,No Effect
+11-30,Injury
+31-50,Reduce 15
+51-70,Reduce 10
+71-94,No Effect
+95-100,Extra 5

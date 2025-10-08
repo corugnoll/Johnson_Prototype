@@ -327,102 +327,23 @@ class FileManager {
 
     /**
      * Validate individual node data
+     * Delegates to ValidationUtils for consistent validation
      * @param {Object} nodeData - Single node data row
      * @param {number} rowNumber - Row number for error reporting
      * @returns {Object} Validation result
      */
     validateNodeData(nodeData, rowNumber) {
-        const errors = [];
-
-        // Validate Node ID
-        const nodeId = nodeData['Node ID'];
-        if (!nodeId || nodeId.trim() === '') {
-            errors.push('Node ID is required');
-        } else if (nodeId.length > 50) {
-            errors.push('Node ID too long (max 50 characters)');
-        }
-
-        // Validate coordinates
-        const x = parseFloat(nodeData['X']);
-        const y = parseFloat(nodeData['Y']);
-
-        if (isNaN(x)) {
-            errors.push('X coordinate must be a valid number');
-        } else if (x < -10000 || x > 10000) {
-            errors.push('X coordinate out of valid range (-10000 to 10000)');
-        }
-
-        if (isNaN(y)) {
-            errors.push('Y coordinate must be a valid number');
-        } else if (y < -10000 || y > 10000) {
-            errors.push('Y coordinate out of valid range (-10000 to 10000)');
-        }
-
-        // Validate optional fields
-        const nodeType = nodeData['Type'];
-        if (nodeType && !this.validNodeTypes.includes(nodeType)) {
-            errors.push(`Invalid node type '${nodeType}'. Valid types: ${this.validNodeTypes.join(', ')}`);
-        }
-
-        const nodeColor = nodeData['Color'];
-        if (nodeColor && !this.validColors.includes(nodeColor)) {
-            errors.push(`Invalid node color '${nodeColor}'. Valid colors: ${this.validColors.join(', ')}`);
-        }
-
-        // Validate description (can be empty for Gate nodes)
-        const description = nodeData['Description'];
-        const isGate = nodeType === 'Gate';
-
-        // For non-Gate nodes, description length validation
-        if (description && description.length > 200) {
-            errors.push('Description too long (max 200 characters)');
-        }
-
-        // Gate nodes should have GateCondition
-        if (isGate) {
-            const gateCondition = nodeData['GateCondition'];
-            if (!gateCondition || gateCondition.trim() === '') {
-                errors.push('Gate nodes require a GateCondition');
-            } else {
-                const gateValidation = this.validateGateCondition(gateCondition, nodeId);
-                if (!gateValidation.valid) {
-                    errors.push(gateValidation.message);
-                }
-            }
-        }
-
-        return {
-            isValid: errors.length === 0,
-            errors: errors
-        };
+        return ValidationUtils.validateNodeData(nodeData, { rowNumber });
     }
 
     /**
      * Validate connection references in imported data
+     * Delegates to ValidationUtils for consistent validation
      * @param {Array} data - Imported node data
      * @returns {Object} Validation result
      */
     validateConnectionReferences(data) {
-        const errors = [];
-        const nodeIds = new Set(data.map(row => row['Node ID']).filter(id => id));
-
-        data.forEach((row, index) => {
-            const connections = row['Connections'];
-            if (connections && connections.trim() !== '') {
-                const connectionIds = connections.split(',').map(id => id.trim()).filter(id => id);
-
-                connectionIds.forEach(connectionId => {
-                    if (!nodeIds.has(connectionId)) {
-                        errors.push(`Row ${index + 1}: Connection reference '${connectionId}' not found in node IDs`);
-                    }
-                });
-            }
-        });
-
-        return {
-            isValid: errors.length === 0,
-            errors: errors
-        };
+        return ValidationUtils.validateConnectionReferences(data);
     }
 
     /**
@@ -505,83 +426,13 @@ class FileManager {
 
     /**
      * Validate gate condition string format
+     * Delegates to ValidationUtils for consistent validation
      * @param {string} conditionString - Gate condition to validate
      * @param {string} nodeId - Node ID for error reporting
      * @returns {Object} Validation result with valid flag and message
      */
     validateGateCondition(conditionString, nodeId) {
-        if (!conditionString || conditionString.trim() === '') {
-            return { valid: false, message: 'Gate condition cannot be empty' };
-        }
-
-        try {
-            const parts = conditionString.split(';');
-            if (parts.length !== 2) {
-                return { valid: false, message: 'Gate condition must have exactly 2 parts separated by semicolon (Type:Params;Threshold)' };
-            }
-
-            const [conditionPart, thresholdStr] = parts;
-
-            // Validate threshold
-            const threshold = parseInt(thresholdStr);
-            if (isNaN(threshold) || threshold < 0) {
-                return { valid: false, message: 'Gate condition threshold must be a non-negative integer' };
-            }
-
-            // Validate condition type
-            if (conditionPart.startsWith('Node:')) {
-                // Validate Node condition format
-                const nodeIdsStr = conditionPart.substring('Node:'.length);
-                const nodeIds = nodeIdsStr.split(',').map(id => id.trim()).filter(id => id !== '');
-
-                if (nodeIds.length === 0) {
-                    return { valid: false, message: 'Node gate condition requires at least one node ID' };
-                }
-
-                // Validate each node ID format
-                for (const nodeId of nodeIds) {
-                    if (!/^[a-zA-Z0-9_-]+$/.test(nodeId)) {
-                        return { valid: false, message: `Invalid node ID '${nodeId}' in gate condition. Must contain only letters, numbers, underscores, and hyphens` };
-                    }
-                }
-            }
-            else if (conditionPart.startsWith('RunnerType:')) {
-                const types = conditionPart.substring('RunnerType:'.length).split(',').map(t => t.trim());
-                const validRunnerTypes = ['Face', 'Muscle', 'Hacker', 'Ninja', 'face', 'muscle', 'hacker', 'ninja'];
-
-                for (const type of types) {
-                    if (!validRunnerTypes.includes(type)) {
-                        return { valid: false, message: `Invalid runner type '${type}' in gate condition. Valid types: Face, Muscle, Hacker, Ninja (case-insensitive)` };
-                    }
-                }
-
-                if (types.length === 0) {
-                    return { valid: false, message: 'RunnerType gate condition requires at least one runner type' };
-                }
-            }
-            else if (conditionPart.startsWith('RunnerStat:')) {
-                const stats = conditionPart.substring('RunnerStat:'.length).split(',').map(s => s.trim());
-                const validStats = ['face', 'muscle', 'hacker', 'ninja'];
-
-                for (const stat of stats) {
-                    if (!validStats.includes(stat.toLowerCase())) {
-                        return { valid: false, message: `Invalid stat '${stat}' in gate condition. Valid stats: face, muscle, hacker, ninja (case-insensitive)` };
-                    }
-                }
-
-                if (stats.length === 0) {
-                    return { valid: false, message: 'RunnerStat gate condition requires at least one stat' };
-                }
-            }
-            else {
-                return { valid: false, message: 'Gate condition must start with Node:, RunnerType:, or RunnerStat:' };
-            }
-
-        } catch (error) {
-            return { valid: false, message: `Error parsing gate condition: ${error.message}` };
-        }
-
-        return { valid: true, message: 'Valid gate condition' };
+        return ValidationUtils.validateGateCondition(conditionString, { nodeId });
     }
 
     /**

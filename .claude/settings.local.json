@@ -14,7 +14,8 @@
       "Bash(then echo \"=== $file ===\")",
       "Bash(fi)",
       "Bash(done)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(test:*)"
     ]
   },
   "outputStyle": "Explanatory"

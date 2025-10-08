@@ -1,0 +1,6 @@
+"Node ID","Description","Effect Desc","Effect 1","Effect 2","Type","Color","X","Y","Width","Height","GateCondition","Connections"
+"NODE001","Node 1","+2 grit","None;+;2;Grit","","Normal","Red","570.0","405.0","80.0","60.0","","NODE002,NODE003"
+"NODE002","Node 3","+100 money","None;+;100;Money","","Normal","Purple","780.0","540.0","80.0","60.0","","NODE004"
+"NODE003","Node 2","+2 dam +2 risk
+","None;+;2;Damage","None;+;2;Risk","Normal","Grey","780.0","300.0","91.4","64.0","","NODE004"
+"NODE004","Node 4","+2 veil","None;+;2;Veil","","Normal","Yellow","990.0","405.0","80.0","60.0","",""

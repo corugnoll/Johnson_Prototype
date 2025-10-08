@@ -595,96 +595,25 @@ class CSVLoader {
 
     /**
      * Validate effect string format
+     * Delegates to ValidationUtils for consistent validation
      * @param {string} effectString - Effect string to validate
      * @param {number} rowNumber - Row number for error reporting
      * @param {string} columnName - Column name for error reporting
      * @returns {Object} Validation result with errors array
      */
     validateEffectString(effectString, rowNumber, columnName) {
-        const errors = [];
-
-        try {
-            const parts = effectString.split(';');
-            if (parts.length !== 4) {
-                errors.push(`Row ${rowNumber} ${columnName}: Effect must have exactly 4 parts separated by semicolons. Got ${parts.length} parts: '${effectString}'`);
-                return { errors };
-            }
-
-            const [condition, operator, amount, stat] = parts;
-
-            // Validate condition
-            if (!condition || condition.trim() === '') {
-                errors.push(`Row ${rowNumber} ${columnName}: Condition part cannot be empty`);
-            } else {
-                const validConditionTypes = ['None', 'RunnerType:', 'RunnerStat:', 'NodeColor:', 'NodeColorCombo:', 'PrevDam', 'PrevRisk', 'RiskDamPair', 'ColorForEach'];
-                const isValidCondition = condition === 'None' ||
-                                         condition === 'PrevDam' ||
-                                         condition === 'PrevRisk' ||
-                                         condition === 'RiskDamPair' ||
-                                         condition === 'ColorForEach' ||
-                                         validConditionTypes.some(type => condition.startsWith(type));
-                if (!isValidCondition) {
-                    errors.push(`Row ${rowNumber} ${columnName}: Invalid condition '${condition}'. Must be 'None', 'PrevDam', 'PrevRisk', 'RiskDamPair', 'ColorForEach', or start with: RunnerType:, RunnerStat:, NodeColor:, NodeColorCombo:`);
-                }
-            }
-
-            // Validate operator
-            const validOperators = ['+', '-', '*', '/', '%'];
-            if (!validOperators.includes(operator)) {
-                errors.push(`Row ${rowNumber} ${columnName}: Invalid operator '${operator}'. Must be one of: ${validOperators.join(', ')}`);
-            }
-
-            // Validate amount
-            if (!amount || amount.trim() === '') {
-                errors.push(`Row ${rowNumber} ${columnName}: Amount part cannot be empty`);
-            } else if (isNaN(parseFloat(amount))) {
-                errors.push(`Row ${rowNumber} ${columnName}: Amount must be a number, got '${amount}'`);
-            } else if (operator === '/' && parseFloat(amount) === 0) {
-                errors.push(`Row ${rowNumber} ${columnName}: Division by zero is not allowed`);
-            }
-
-            // Validate stat (case-insensitive)
-            const validStats = ['damage', 'risk', 'money', 'grit', 'veil'];
-            if (!stat || stat.trim() === '') {
-                errors.push(`Row ${rowNumber} ${columnName}: Stat part cannot be empty`);
-            } else if (!validStats.includes(stat.toLowerCase())) {
-                errors.push(`Row ${rowNumber} ${columnName}: Invalid stat '${stat}'. Must be one of: ${validStats.join(', ')} (case-insensitive)`);
-            }
-
-        } catch (error) {
-            errors.push(`Row ${rowNumber} ${columnName}: Error parsing effect string '${effectString}': ${error.message}`);
-        }
-
-        return { errors };
+        return ValidationUtils.validateEffectString(effectString, { rowNumber, columnName });
     }
 
     /**
      * Validate connections string format
+     * Delegates to ValidationUtils for consistent validation
      * @param {string} connectionsString - Connections string to validate
      * @param {number} rowNumber - Row number for error reporting
      * @returns {Object} Validation result with errors array
      */
     validateConnectionsString(connectionsString, rowNumber) {
-        const errors = [];
-
-        try {
-            // Support both comma-separated (editor format) and semicolon-separated (legacy format)
-            const separator = connectionsString.includes(',') ? ',' : ';';
-            const connections = connectionsString.split(separator).map(c => c.trim()).filter(c => c !== '');
-
-            connections.forEach(connection => {
-                if (!connection || connection.trim() === '') {
-                    errors.push(`Row ${rowNumber}: Empty connection found in connections string`);
-                } else if (!/^[a-zA-Z0-9_-]+$/.test(connection)) {
-                    errors.push(`Row ${rowNumber}: Invalid connection ID '${connection}'. Must contain only letters, numbers, underscores, and hyphens`);
-                }
-            });
-
-        } catch (error) {
-            errors.push(`Row ${rowNumber}: Error parsing connections string '${connectionsString}': ${error.message}`);
-        }
-
-        return { errors };
+        return ValidationUtils.validateConnectionsString(connectionsString, { rowNumber });
     }
 
     /**
@@ -746,56 +675,13 @@ class CSVLoader {
 
     /**
      * Validate gate condition string format
+     * Delegates to ValidationUtils for consistent validation
      * @param {string} conditionString - Gate condition to validate
      * @param {number} rowNumber - Row number for error reporting
      * @returns {Object} Validation result with errors array
      */
     validateGateConditionFormat(conditionString, rowNumber) {
-        const errors = [];
-
-        try {
-            const parts = conditionString.split(';');
-            if (parts.length !== 2) {
-                errors.push(`Row ${rowNumber}: Gate condition must have 2 parts (Type:Params;Threshold)`);
-                return { errors };
-            }
-
-            const [conditionPart, thresholdStr] = parts;
-            const threshold = parseInt(thresholdStr);
-
-            if (isNaN(threshold) || threshold < 0) {
-                errors.push(`Row ${rowNumber}: Gate condition threshold must be non-negative integer`);
-            }
-
-            // Validate condition type
-            if (conditionPart.startsWith('Node:')) {
-                // Validate Node condition format
-                const nodeIdsStr = conditionPart.substring('Node:'.length);
-                const nodeIds = nodeIdsStr.split(',').map(id => id.trim()).filter(id => id !== '');
-
-                if (nodeIds.length === 0) {
-                    errors.push(`Row ${rowNumber}: Node gate condition must specify at least one node ID`);
-                }
-
-                // Validate each node ID format
-                nodeIds.forEach(nodeId => {
-                    if (!/^[a-zA-Z0-9_-]+$/.test(nodeId)) {
-                        errors.push(`Row ${rowNumber}: Invalid node ID '${nodeId}' in gate condition. Must contain only letters, numbers, underscores, and hyphens`);
-                    }
-                });
-
-            } else if (conditionPart.startsWith('RunnerType:')) {
-                // Existing RunnerType validation (already passes through)
-            } else if (conditionPart.startsWith('RunnerStat:')) {
-                // Existing RunnerStat validation (already passes through)
-            } else {
-                errors.push(`Row ${rowNumber}: Gate condition must start with 'Node:', 'RunnerType:', or 'RunnerStat:'`);
-            }
-
-        } catch (error) {
-            errors.push(`Row ${rowNumber}: Error parsing gate condition: ${error.message}`);
-        }
-
-        return { errors };
+        const result = ValidationUtils.validateGateCondition(conditionString, { rowNumber });
+        return { errors: result.errors };
     }
 }

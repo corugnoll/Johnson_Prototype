@@ -1,8 +1,8 @@
 "Node ID","Description","Effect Desc","Effect 1","Effect 2","Type","Color","X","Y","Width","Height","GateCondition","Connections"
 "NODE002","Blast Through 
-Entrance Area","+2 Grit","None;+;2;Grit","","Normal","Red","240.0","375.0","103.0","64.0","","NODE008"
+Entrance Area","+2 Grit","None;+;2;Grit","","Normal","Red","225.0","360.0","103.0","64.0","","NODE008"
 "NODE001","Server Farm Entrance","+2 Risk
-+1 Damage","None;+;2;Risk","None;+;1;Damage","Normal","Grey","-75.0","465.0","149.7","64.0","","NODE020,NODE002,NODE006,NODE007"
++1 Damage","None;+;2;Risk","None;+;1;Damage","Normal","Grey","-75.0","465.0","149.7","64.0","","NODE020,NODE002,NODE006,NODE007,NODE028"
 "NODE003","Gain Mainframe Access
 and disable security","+1 Grit","None;+;1;Grit","","Normal","Blue","135.0","210.0","160.6","64.0","","NODE004"
 "NODE004","Search for AI Core Location
@@ -33,7 +33,7 @@ Security Alert Triggered","+2 Risk
 "NODE016","Fight your way out","+1 Grit for each 
 3 Muscle stat","RunnerStat:muscle>3;+;1;Grit","","Normal","Red","1590.0","330.0","126.4","64.0","","NODE019"
 "NODE017","Stick to the Shadows
-and Sneak Out","+1 Veil for each 3 Stealth Stat","RunnerStat:ninja>3;+;1;Veil","","Normal","Purple","1590.0","480.0","170.4","64.0","","NODE019"
+and Sneak Out","+1 Veil for each 3 Stealth Stat","RunnerStat:stealth>3;+;1;Veil","","Normal","Purple","1590.0","480.0","170.4","64.0","","NODE019"
 "NODE018","Hack and take over
 Security Drones","+1 Grit and +1 Veil for each 5 Hacker Stat","RunnerStat:hacker>5;+;1;Veil","RunnerStat:hacker>5;+;1;Grit","Normal","Blue","1590.0","615.0","168.1","80.0","","NODE019"
 "NODE019","End","No Effect","None;+;0;Risk","","Normal","Grey","1860.0","480.0","80.0","60.0","",""
@@ -47,4 +47,5 @@ Security Drones","+1 Grit and +1 Veil for each 5 Hacker Stat","RunnerStat:hacker
 "NODE025","Risk Averse","For each pair of Damage and Risk prevented:
 +15% Reward","RiskDamPair;%;15;Money","","Synergy","Green","540.0","0.0","194.8","80.0","",""
 "NODE026","Money test node","Node effect description","None;+;200;Money","","Synergy","Purple","960.0","-75.0","134.5","60.0","",""
-"NODE027","Money test node 2","Money 2","None;+;100;Money","","Normal","Red","975.0","0.0","127.2","60.0","",""
+"NODE027","Money test node 2","Money 2","None;+;100;Money","","Normal","Red","1140.0","90.0","127.2","60.0","",""
+"NODE028","Tthis is a test","+3 Grit","None;+;3;Grit","","Normal","Purple","210.0","705.0","94.5","60.0","","NODE021"

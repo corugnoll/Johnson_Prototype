@@ -696,134 +696,30 @@ class VisualPrototypeRenderer {
     }
 
     /**
-     * Calculate enhanced connection path using editor-style routing
+     * Calculate enhanced connection path using shared ConnectionUtils
      * @param {Object} fromPos - From node position and dimensions
      * @param {Object} toPos - To node position and dimensions
      * @returns {Array} Array of points forming the connection path
      */
     calculateEnhancedConnectionPath(fromPos, toPos) {
-        // Find best anchor points on node edges (like editor)
-        const anchorPoints = this.findBestAnchorPoints(fromPos, toPos);
-        const startPoint = anchorPoints.start;
-        const endPoint = anchorPoints.end;
-
-        // Generate 90-degree angle path
-        return this.generateRightAnglePath(startPoint, endPoint);
+        return ConnectionUtils.calculateConnectionPath(fromPos, toPos);
     }
 
     /**
-     * Find best anchor points on node edges for connection (matching editor implementation)
-     * @param {Object} fromPos - From node position
-     * @param {Object} toPos - To node position
-     * @returns {Object} Start and end anchor points
-     */
-    findBestAnchorPoints(fromPos, toPos) {
-        // Get center points of both nodes
-        const center1 = {
-            x: fromPos.x + fromPos.width / 2,
-            y: fromPos.y + fromPos.height / 2
-        };
-        const center2 = {
-            x: toPos.x + toPos.width / 2,
-            y: toPos.y + toPos.height / 2
-        };
-
-        // Calculate direction from node1 to node2
-        const dx = center2.x - center1.x;
-        const dy = center2.y - center1.y;
-
-        // Determine best anchor points based on relative positions
-        let startAnchor, endAnchor;
-
-        if (Math.abs(dx) > Math.abs(dy)) {
-            // Horizontal connection preferred
-            if (dx > 0) {
-                // Node2 is to the right of node1
-                startAnchor = { x: fromPos.x + fromPos.width, y: center1.y };
-                endAnchor = { x: toPos.x, y: center2.y };
-            } else {
-                // Node2 is to the left of node1
-                startAnchor = { x: fromPos.x, y: center1.y };
-                endAnchor = { x: toPos.x + toPos.width, y: center2.y };
-            }
-        } else {
-            // Vertical connection preferred
-            if (dy > 0) {
-                // Node2 is below node1
-                startAnchor = { x: center1.x, y: fromPos.y + fromPos.height };
-                endAnchor = { x: center2.x, y: toPos.y };
-            } else {
-                // Node2 is above node1
-                startAnchor = { x: center1.x, y: fromPos.y };
-                endAnchor = { x: center2.x, y: toPos.y + toPos.height };
-            }
-        }
-
-        return {
-            start: startAnchor,
-            end: endAnchor
-        };
-    }
-
-    /**
-     * Generate right-angle path with clean perpendicular entry/exit (matching editor implementation)
-     * @param {Object} startPoint - Starting point
-     * @param {Object} endPoint - Ending point
-     * @returns {Array} Array of points forming the path
-     */
-    generateRightAnglePath(startPoint, endPoint) {
-        const dx = endPoint.x - startPoint.x;
-        const dy = endPoint.y - startPoint.y;
-
-        // If already aligned, use straight line
-        if (Math.abs(dx) < 5) {
-            return [startPoint, { x: startPoint.x, y: endPoint.y }];
-        }
-        if (Math.abs(dy) < 5) {
-            return [startPoint, { x: endPoint.x, y: startPoint.y }];
-        }
-
-        // Use L-shaped routing with midpoint (matching editor implementation)
-        const midPoint = {
-            x: startPoint.x + dx * 0.5,
-            y: startPoint.y
-        };
-
-        return [
-            startPoint,
-            midPoint,
-            { x: midPoint.x, y: endPoint.y },
-            endPoint
-        ];
-    }
-
-    /**
-     * Draw arrow head at connection endpoint (editor style)
+     * Draw arrow head at connection endpoint using shared ConnectionUtils
      * @param {Object} endPoint - End point of connection
      * @param {Object} previousPoint - Previous point for direction calculation
      */
     drawConnectionArrow(endPoint, previousPoint) {
-        if (!endPoint || !previousPoint) return;
-
-        const dx = endPoint.x - previousPoint.x;
-        const dy = endPoint.y - previousPoint.y;
-        const angle = Math.atan2(dy, dx);
-
-        // Arrow configuration (matching editor)
-        const arrowLength = 8;
-        const arrowAngle = Math.PI / 6; // 30 degrees
-
-        const x1 = endPoint.x - arrowLength * Math.cos(angle - arrowAngle);
-        const y1 = endPoint.y - arrowLength * Math.sin(angle - arrowAngle);
-        const x2 = endPoint.x - arrowLength * Math.cos(angle + arrowAngle);
-        const y2 = endPoint.y - arrowLength * Math.sin(angle + arrowAngle);
+        const arrowPoints = ConnectionUtils.calculateArrowHead(endPoint, previousPoint);
+        if (!arrowPoints) return;
 
         // Draw arrow head
         this.ctx.beginPath();
         this.ctx.moveTo(endPoint.x, endPoint.y);
-        this.ctx.lineTo(x1, y1);
+        this.ctx.lineTo(arrowPoints.point1.x, arrowPoints.point1.y);
         this.ctx.moveTo(endPoint.x, endPoint.y);
-        this.ctx.lineTo(x2, y2);
+        this.ctx.lineTo(arrowPoints.point2.x, arrowPoints.point2.y);
         this.ctx.stroke();
     }
 

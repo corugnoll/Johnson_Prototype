@@ -76,69 +76,11 @@ class ConnectionManager {
     }
 
     /**
-     * Calculate connection path between two nodes using 90-degree routing
+     * Calculate connection path between two nodes using shared ConnectionUtils
      */
     calculateConnectionPath(fromNode, toNode) {
         if (!fromNode || !toNode) return [];
-
-        // Find best anchor points on each node
-        const anchorPoints = this.findBestAnchorPoints(fromNode, toNode);
-        const startPoint = anchorPoints.start;
-        const endPoint = anchorPoints.end;
-
-        // Calculate path with 90-degree angles
-        return this.calculateRightAnglePath(startPoint, endPoint);
-    }
-
-    /**
-     * Find the best anchor points on two nodes for connection
-     */
-    findBestAnchorPoints(node1, node2) {
-        // Get center points of both nodes
-        const center1 = {
-            x: node1.x + node1.width / 2,
-            y: node1.y + node1.height / 2
-        };
-        const center2 = {
-            x: node2.x + node2.width / 2,
-            y: node2.y + node2.height / 2
-        };
-
-        // Calculate direction from node1 to node2
-        const dx = center2.x - center1.x;
-        const dy = center2.y - center1.y;
-
-        // Determine best anchor points based on relative positions
-        let startAnchor, endAnchor;
-
-        if (Math.abs(dx) > Math.abs(dy)) {
-            // Horizontal connection preferred
-            if (dx > 0) {
-                // Node2 is to the right of node1
-                startAnchor = { x: node1.x + node1.width, y: center1.y };
-                endAnchor = { x: node2.x, y: center2.y };
-            } else {
-                // Node2 is to the left of node1
-                startAnchor = { x: node1.x, y: center1.y };
-                endAnchor = { x: node2.x + node2.width, y: center2.y };
-            }
-        } else {
-            // Vertical connection preferred
-            if (dy > 0) {
-                // Node2 is below node1
-                startAnchor = { x: center1.x, y: node1.y + node1.height };
-                endAnchor = { x: center2.x, y: node2.y };
-            } else {
-                // Node2 is above node1
-                startAnchor = { x: center1.x, y: node1.y };
-                endAnchor = { x: center2.x, y: node2.y + node2.height };
-            }
-        }
-
-        return {
-            start: startAnchor,
-            end: endAnchor
-        };
+        return ConnectionUtils.calculateConnectionPath(fromNode, toNode);
     }
 
     /**
@@ -146,35 +88,6 @@ class ConnectionManager {
      */
     calculateStraightPath(start, end) {
         return [start, end];
-    }
-
-    /**
-     * Calculate right-angle path (L-shaped or Z-shaped)
-     */
-    calculateRightAnglePath(start, end) {
-        const dx = end.x - start.x;
-        const dy = end.y - start.y;
-
-        // If already aligned, use straight line
-        if (Math.abs(dx) < 5) {
-            return [start, { x: start.x, y: end.y }];
-        }
-        if (Math.abs(dy) < 5) {
-            return [start, { x: end.x, y: start.y }];
-        }
-
-        // Use L-shaped routing with midpoint
-        const midPoint = {
-            x: start.x + dx * 0.5,
-            y: start.y
-        };
-
-        return [
-            start,
-            midPoint,
-            { x: midPoint.x, y: end.y },
-            end
-        ];
     }
 
     /**

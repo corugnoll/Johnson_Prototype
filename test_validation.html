@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 3 Validation Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #00ff00;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+        }
+        .pass {
+            color: #00ff00;
+        }
+        .fail {
+            color: #ff0000;
+        }
+        .test-result {
+            margin: 5px 0;
+        }
+        h2 {
+            color: #00ffff;
+        }
+        h3 {
+            color: #ffff00;
+        }
+    </style>
+</head>
+<body>
+    <h1>Phase 3 Validation Testing</h1>
+    <div id="test-output"></div>
+
+    <script src="js/utils/validationUtils.js"></script>
+    <script>
+        const output = document.getElementById('test-output');
+
+        function logTest(testName, passed, message = '') {
+            const div = document.createElement('div');
+            div.className = 'test-result';
+            const status = passed ? '<span class="pass">✓ PASS</span>' : '<span class="fail">✗ FAIL</span>';
+            div.innerHTML = `${status} - ${testName}${message ? ': ' + message : ''}`;
+            output.appendChild(div);
+            return passed;
+        }
+
+        function logSection(title) {
+            const div = document.createElement('div');
+            div.className = 'test-section';
+            div.innerHTML = `<h3>${title}</h3>`;
+            output.appendChild(div);
+            return div;
+        }
+
+        // Test Suite
+        let passCount = 0;
+        let failCount = 0;
+
+        function runTest(name, fn) {
+            try {
+                const result = fn();
+                if (result) {
+                    passCount++;
+                    logTest(name, true);
+                } else {
+                    failCount++;
+                    logTest(name, false);
+                }
+            } catch (error) {
+                failCount++;
+                logTest(name, false, error.message);
+            }
+        }
+
+        // ===== EFFECT STRING TESTS =====
+        logSection('Effect String Validation Tests');
+
+        runTest('Valid effect: None;+;10;Damage', () => {
+            const result = ValidationUtils.validateEffectString('None;+;10;Damage');
+            return result.errors.length === 0;
+        });
+
+        runTest('Valid effect: RunnerType:Hacker;-;2;Risk', () => {
+            const result = ValidationUtils.validateEffectString('RunnerType:Hacker;-;2;Risk');
+            return result.errors.length === 0;
+        });
+
+        runTest('Valid effect: PrevDam;%;10;Money', () => {
+            const result = ValidationUtils.validateEffectString('PrevDam;%;10;Money');
+            return result.errors.length === 0;
+        });
+
+        runTest('Valid effect: ColorForEach;+;5;Damage', () => {
+            const result = ValidationUtils.validateEffectString('ColorForEach;+;5;Damage');
+            return result.errors.length === 0;
+        });
+
+        runTest('Invalid effect: wrong part count', () => {
+            const result = ValidationUtils.validateEffectString('None;+;10');
+            return result.errors.length > 0;
+        });
+
+        runTest('Invalid effect: bad operator', () => {
+            const result = ValidationUtils.validateEffectString('None;^;10;Damage');
+            return result.errors.length > 0;
+        });
+
+        runTest('Invalid effect: bad stat', () => {
+            const result = ValidationUtils.validateEffectString('None;+;10;InvalidStat');
+            return result.errors.length > 0;
+        });
+
+        runTest('Invalid effect: division by zero', () => {
+            const result = ValidationUtils.validateEffectString('None;/;0;Damage');
+            return result.errors.length > 0;
+        });
+
+        runTest('Invalid effect: non-numeric amount', () => {
+            const result = ValidationUtils.validateEffectString('None;+;abc;Damage');
+            return result.errors.length > 0;
+        });
+
+        runTest('Invalid effect: bad condition', () => {
+            const result = ValidationUtils.validateEffectString('InvalidCondition;+;10;Damage');
+            return result.errors.length > 0;
+        });
+
+        // ===== GATE CONDITION TESTS =====
+        logSection('Gate Condition Validation Tests');
+
+        runTest('Valid gate: Node:NODE001,NODE002;2', () => {
+            const result = ValidationUtils.validateGateCondition('Node:NODE001,NODE002;2');
+            return result.valid === true;
+        });
+
+        runTest('Valid gate: RunnerType:hacker;1', () => {
+            const result = ValidationUtils.validateGateCondition('RunnerType:hacker;1');
+            return result.valid === true;
+        });
+
+        runTest('Valid gate: RunnerStat:muscle,face;10', () => {
+            const result = ValidationUtils.validateGateCondition('RunnerStat:muscle,face;10');
+            return result.valid === true;
+        });
+
+        runTest('Invalid gate: wrong part count', () => {
+            const result = ValidationUtils.validateGateCondition('Node:NODE001');
+            return result.valid === false;
+        });
+
+        runTest('Invalid gate: negative threshold', () => {
+            const result = ValidationUtils.validateGateCondition('Node:NODE001;-1');
+            return result.valid === false;
+        });
+
+        runTest('Invalid gate: empty node list', () => {
+            const result = ValidationUtils.validateGateCondition('Node:;2');
+            return result.valid === false;
+        });
+
+        runTest('Invalid gate: bad runner type', () => {
+            const result = ValidationUtils.validateGateCondition('RunnerType:InvalidType;1');
+            return result.valid === false;
+        });
+
+        runTest('Invalid gate: bad stat', () => {
+            const result = ValidationUtils.validateGateCondition('RunnerStat:invalidstat;5');
+            return result.valid === false;
+        });
+
+        runTest('Invalid gate: unknown condition type', () => {
+            const result = ValidationUtils.validateGateCondition('InvalidType:something;1');
+            return result.valid === false;
+        });
+
+        // ===== CONNECTIONS TESTS =====
+        logSection('Connections Validation Tests');
+
+        runTest('Valid connections: NODE001,NODE002,NODE003', () => {
+            const result = ValidationUtils.validateConnectionsString('NODE001,NODE002,NODE003');
+            return result.errors.length === 0;
+        });
+
+        runTest('Valid connections: NODE_001,NODE-002', () => {
+            const result = ValidationUtils.validateConnectionsString('NODE_001,NODE-002');
+            return result.errors.length === 0;
+        });
+
+        runTest('Invalid connections: contains space', () => {
+            const result = ValidationUtils.validateConnectionsString('NODE 001,NODE002');
+            return result.errors.length > 0;
+        });
+
+        runTest('Invalid connections: contains special char', () => {
+            const result = ValidationUtils.validateConnectionsString('NODE@001,NODE002');
+            return result.errors.length > 0;
+        });
+
+        // ===== NODE DATA TESTS =====
+        logSection('Node Data Validation Tests');
+
+        runTest('Valid node data', () => {
+            const nodeData = {
+                'Node ID': 'NODE001',
+                'X': '100',
+                'Y': '200',
+                'Type': 'Normal',
+                'Color': 'Red',
+                'Description': 'Test node',
+                'Effect 1': 'None;+;10;Damage',
+                'Effect 2': '',
+                'Connections': 'NODE002'
+            };
+            const result = ValidationUtils.validateNodeData(nodeData);
+            return result.isValid === true;
+        });
+
+        runTest('Invalid node: missing Node ID', () => {
+            const nodeData = {
+                'Node ID': '',
+                'X': '100',
+                'Y': '200',
+                'Type': 'Normal',
+                'Color': 'Red'
+            };
+            const result = ValidationUtils.validateNodeData(nodeData);
+            return result.isValid === false;
+        });
+
+        runTest('Invalid node: bad X coordinate', () => {
+            const nodeData = {
+                'Node ID': 'NODE001',
+                'X': 'abc',
+                'Y': '200',
+                'Type': 'Normal',
+                'Color': 'Red'
+            };
+            const result = ValidationUtils.validateNodeData(nodeData);
+            return result.isValid === false;
+        });
+
+        runTest('Invalid node: X out of range', () => {
+            const nodeData = {
+                'Node ID': 'NODE001',
+                'X': '20000',
+                'Y': '200',
+                'Type': 'Normal',
+                'Color': 'Red'
+            };
+            const result = ValidationUtils.validateNodeData(nodeData);
+            return result.isValid === false;
+        });
+
+        runTest('Invalid node: bad type', () => {
+            const nodeData = {
+                'Node ID': 'NODE001',
+                'X': '100',
+                'Y': '200',
+                'Type': 'InvalidType',
+                'Color': 'Red'
+            };
+            const result = ValidationUtils.validateNodeData(nodeData);
+            return result.isValid === false;
+        });
+
+        runTest('Invalid node: bad color', () => {
+            const nodeData = {
+                'Node ID': 'NODE001',
+                'X': '100',
+                'Y': '200',
+                'Type': 'Normal',
+                'Color': 'Orange'
+            };
+            const result = ValidationUtils.validateNodeData(nodeData);
+            return result.isValid === false;
+        });
+
+        runTest('Invalid node: Gate without condition', () => {
+            const nodeData = {
+                'Node ID': 'GATE001',
+                'X': '100',
+                'Y': '200',
+                'Type': 'Gate',
+                'Color': 'Yellow',
+                'GateCondition': ''
+            };
+            const result = ValidationUtils.validateNodeData(nodeData);
+            return result.isValid === false;
+        });
+
+        // ===== TYPE CHECKING TESTS =====
+        logSection('Type Checking Utility Tests');
+
+        runTest('isValidColor: Red', () => {
+            return ValidationUtils.isValidColor('Red') === true;
+        });
+
+        runTest('isValidColor: Orange', () => {
+            return ValidationUtils.isValidColor('Orange') === false;
+        });
+
+        runTest('isValidNodeType: Normal', () => {
+            return ValidationUtils.isValidNodeType('Normal') === true;
+        });
+
+        runTest('isValidNodeType: InvalidType', () => {
+            return ValidationUtils.isValidNodeType('InvalidType') === false;
+        });
+
+        runTest('isValidOperator: +', () => {
+            return ValidationUtils.isValidOperator('+') === true;
+        });
+
+        runTest('isValidOperator: ^', () => {
+            return ValidationUtils.isValidOperator('^') === false;
+        });
+
+        runTest('isValidStat: damage (lowercase)', () => {
+            return ValidationUtils.isValidStat('damage') === true;
+        });
+
+        runTest('isValidStat: Damage (mixed case)', () => {
+            return ValidationUtils.isValidStat('Damage') === true;
+        });
+
+        runTest('isValidStat: InvalidStat', () => {
+            return ValidationUtils.isValidStat('InvalidStat') === false;
+        });
+
+        runTest('isValidRunnerType: Hacker', () => {
+            return ValidationUtils.isValidRunnerType('Hacker') === true;
+        });
+
+        runTest('isValidRunnerType: hacker (lowercase)', () => {
+            return ValidationUtils.isValidRunnerType('hacker') === true;
+        });
+
+        runTest('isValidRunnerType: InvalidType', () => {
+            return ValidationUtils.isValidRunnerType('InvalidType') === false;
+        });
+
+        // ===== SUMMARY =====
+        const summary = document.createElement('div');
+        summary.className = 'test-section';
+        summary.innerHTML = `
+            <h2>Test Summary</h2>
+            <p class="pass">Passed: ${passCount}</p>
+            <p class="fail">Failed: ${failCount}</p>
+            <p>Total: ${passCount + failCount}</p>
+            <p><strong>${failCount === 0 ? 'ALL TESTS PASSED! ✓' : 'SOME TESTS FAILED ✗'}</strong></p>
+        `;
+        output.appendChild(summary);
+
+        console.log('Phase 3 Validation Tests Complete');
+        console.log(`Passed: ${passCount}, Failed: ${failCount}`);
+    </script>
+</body>
+</html>
