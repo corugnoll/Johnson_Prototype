@@ -1,0 +1,10 @@
+Parameter,Value,Description
+generatedRunnerBatchSize,5,Number of runners generated per batch
+hiringCost,150,Base cost to hire a runner
+contractBaseReward,1000,Base money reward for all contracts
+playerLevelPerContract,1,How much player level increases per contract
+runnerLevelUpStatGain,4,Total stat points gained per level
+runnerMainStatAllocation,2,Stat points allocated to main stat on level up
+runnerRandomStatAllocation,2,Stat points randomly distributed on level up
+damageRollDelay,200,Milliseconds between damage roll displays
+maxDamageRollValue,100,Maximum value for damage table rolls
