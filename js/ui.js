@@ -343,7 +343,7 @@ class UIManager {
     }
 
     /**
-     * Show contract execution results modal
+     * Show contract execution results modal (MODIFIED for Runner Generation System)
      * @param {Object} executionResults - Results from contract execution
      */
     showExecutionResults(executionResults) {
@@ -377,17 +377,131 @@ class UIManager {
         this.updateElementText('after-risk', executionResults.postExecution.risk);
         this.updateElementText('after-contracts', executionResults.postExecution.contracts);
 
+        // Render damage rolls section
+        this.renderDamageRolls(executionResults.damageRolls || []);
+
         // Update execution details
         this.updateElementText('final-damage', executionResults.finalDamage);
         this.updateElementText('final-risk', executionResults.finalRisk);
         this.updateElementText('money-earned', `$${executionResults.moneyEarned}`);
         this.updateElementText('prevention-applied', executionResults.preventionApplied);
 
+        // Display runner level ups if any
+        if (executionResults.runnersLeveledUp && executionResults.runnersLeveledUp.length > 0) {
+            this.renderRunnerLevelUps(executionResults.runnersLeveledUp);
+        }
+
         // Show modal
         modal.style.display = 'flex';
 
         // Set up modal event listeners if not already set
         this.setupResultsModalListeners();
+    }
+
+    /**
+     * Render damage rolls in execution results
+     * @param {Array} damageRolls - Array of damage roll results
+     */
+    renderDamageRolls(damageRolls) {
+        const container = document.getElementById('damage-rolls-container');
+        if (!container) {
+            // Create container if it doesn't exist
+            const detailsSection = document.querySelector('.execution-details');
+            if (detailsSection) {
+                const rollsContainer = document.createElement('div');
+                rollsContainer.id = 'damage-rolls-container';
+                rollsContainer.className = 'damage-rolls-section';
+                rollsContainer.innerHTML = '<h4>Damage Rolls</h4><div id="damage-rolls-list" class="damage-rolls-list"></div>';
+                detailsSection.insertBefore(rollsContainer, detailsSection.firstChild);
+            }
+        }
+
+        const rollsList = document.getElementById('damage-rolls-list');
+        if (!rollsList) return;
+
+        // Clear existing rolls
+        rollsList.innerHTML = '';
+
+        if (damageRolls.length === 0) {
+            rollsList.innerHTML = '<div class="no-damage-rolls">No damage taken - Clean execution!</div>';
+            return;
+        }
+
+        // Render each damage roll
+        damageRolls.forEach(roll => {
+            const rollElement = document.createElement('div');
+            rollElement.className = 'damage-roll-item';
+
+            let effectClass = '';
+            if (roll.effect === 'Death') {
+                effectClass = 'death';
+            } else if (roll.effect === 'Injury') {
+                effectClass = 'injury';
+            } else if (roll.effect === 'Reduce') {
+                effectClass = 'reduce';
+            } else if (roll.effect === 'Extra') {
+                effectClass = 'extra';
+            } else {
+                effectClass = 'no-effect';
+            }
+
+            rollElement.innerHTML = `
+                <div class="damage-roll-number">Roll ${roll.rollNumber}</div>
+                <div class="damage-roll-value">${roll.roll}</div>
+                <div class="damage-roll-effect ${effectClass}">${roll.effect}</div>
+                <div class="damage-roll-description">${roll.description}</div>
+            `;
+
+            rollsList.appendChild(rollElement);
+        });
+    }
+
+    /**
+     * Render runner level ups in execution results
+     * @param {Array} runnersLeveledUp - Array of runners that leveled up
+     */
+    renderRunnerLevelUps(runnersLeveledUp) {
+        const container = document.getElementById('runner-levelups-container');
+        if (!container) {
+            // Create container if it doesn't exist
+            const detailsSection = document.querySelector('.execution-details');
+            if (detailsSection) {
+                const levelupContainer = document.createElement('div');
+                levelupContainer.id = 'runner-levelups-container';
+                levelupContainer.className = 'runner-levelups-section';
+                levelupContainer.innerHTML = '<h4>Runner Progression</h4><div id="runner-levelups-list" class="runner-levelups-list"></div>';
+                detailsSection.appendChild(levelupContainer);
+            }
+        }
+
+        const levelupsList = document.getElementById('runner-levelups-list');
+        if (!levelupsList) return;
+
+        levelupsList.innerHTML = '';
+
+        runnersLeveledUp.forEach(runner => {
+            const levelupElement = document.createElement('div');
+            levelupElement.className = 'runner-levelup-item';
+            levelupElement.innerHTML = `
+                <span class="runner-levelup-name">${runner.name}</span>
+                <span class="runner-levelup-info">Level ${runner.level - 1} → ${runner.level}</span>
+            `;
+            levelupsList.appendChild(levelupElement);
+        });
+    }
+
+    /**
+     * Update damage roll display during contract resolution
+     * Called as callback during damage roll processing
+     * @param {Object} rollResult - Single damage roll result
+     */
+    updateDamageRoll(rollResult) {
+        // This method is called in real-time during contract resolution
+        // For now, we just log it - full animation can be added later
+        console.log(`Damage Roll ${rollResult.rollNumber}: ${rollResult.roll} - ${rollResult.effect}`);
+
+        // Could add real-time animation here if modal is shown during resolution
+        // For Phase 4 MVP, we show all rolls after resolution completes
     }
 
     /**

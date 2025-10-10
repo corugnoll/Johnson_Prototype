@@ -358,11 +358,17 @@ class JohnsonApp {
 
 
     /**
-     * Handle contract execution
+     * Handle contract execution (MODIFIED for Runner Generation System)
      */
     async handleExecuteContract() {
         if (!this.gameState || !this.gameState.contractData) {
             this.updateLoadingMessage('No contract loaded for execution.');
+            return;
+        }
+
+        // Validate that runners are hired
+        if (this.gameState.hiredRunners.length === 0) {
+            this.updateLoadingMessage('No runners hired. Please hire runners before executing contract.');
             return;
         }
 
@@ -371,35 +377,81 @@ class JohnsonApp {
             this.uiManager.setExecutionLoading(true);
             this.updateLoadingMessage('Executing contract...');
 
+            // Calculate final pools
+            this.gameState.calculateCurrentPools();
+
+            // Store pre-execution state for results display
+            const preExecutionState = {
+                money: this.gameState.playerMoney,
+                risk: this.gameState.playerRisk,
+                contracts: this.gameState.contractsCompleted,
+                level: this.gameState.playerLevel
+            };
+
             // Add small delay to show loading state
             await new Promise(resolve => setTimeout(resolve, 500));
 
-            // Execute the contract
-            const executionResults = this.gameState.executeContract();
+            // Execute contract resolution with new system
+            const resolutionResults = await executeContractResolution(
+                this.gameState,
+                this.uiManager.updateDamageRoll.bind(this.uiManager)
+            );
+
+            // Store post-execution state
+            const postExecutionState = {
+                money: this.gameState.playerMoney,
+                risk: this.gameState.playerRisk,
+                contracts: this.gameState.contractsCompleted,
+                level: this.gameState.playerLevel
+            };
+
+            // Calculate money earned (includes base reward + node money - any reductions)
+            const moneyEarned = resolutionResults.finalReward;
+
+            // Create comprehensive results object for UI
+            const executionResults = {
+                success: resolutionResults.riskApplied <= 10, // Success if risk is manageable
+                preExecution: preExecutionState,
+                postExecution: postExecutionState,
+                damageRolls: resolutionResults.damageRolls,
+                finalDamage: resolutionResults.damageRolls.length, // Number of damage rolls
+                finalRisk: resolutionResults.riskApplied,
+                moneyEarned: moneyEarned,
+                runnersLeveledUp: resolutionResults.runnersLeveledUp,
+                playerLevelGained: resolutionResults.playerLevelGained,
+                preventionApplied: this.formatPreventionInfo()
+            };
 
             // Update UI with new game state
             this.uiManager.updateGameStateDisplay();
+            this.uiManager.updateHiredRunnersDisplay(); // No runners hired after execution
 
             // Clear loading state
             this.uiManager.setExecutionLoading(false);
 
-            // Show results modal
+            // Show results modal with damage rolls
             this.uiManager.showExecutionResults(executionResults);
 
             // Update loading message
             if (executionResults.success) {
                 this.updateLoadingMessage('Contract completed successfully!');
             } else {
-                this.updateLoadingMessage('Contract completed with complications.');
+                this.updateLoadingMessage('Contract completed with high risk.');
             }
+
+            // Reset contract for new selection
+            this.gameState.resetContract();
+
+            // Save session state
+            this.gameState.saveSessionState();
 
             // Log execution details for debugging
             console.log('Contract execution completed:', {
                 success: executionResults.success,
-                moneyEarned: executionResults.moneyEarned,
-                finalDamage: executionResults.finalDamage,
-                finalRisk: executionResults.finalRisk,
-                executionTime: executionResults.executionTime
+                moneyEarned: moneyEarned,
+                damageRolls: resolutionResults.damageRolls.length,
+                finalRisk: resolutionResults.riskApplied,
+                runnersLeveledUp: resolutionResults.runnersLeveledUp.length
             });
 
         } catch (error) {
@@ -407,6 +459,30 @@ class JohnsonApp {
             this.uiManager.setExecutionLoading(false);
             this.updateLoadingMessage(`Execution error: ${error.message}`);
         }
+    }
+
+    /**
+     * Format prevention information for results display
+     * @returns {string} Formatted prevention info
+     */
+    formatPreventionInfo() {
+        const pools = this.gameState.currentPools;
+        const damagePrevented = Math.min(Math.floor(pools.grit / 2), pools.damage);
+        const riskPrevented = Math.min(Math.floor(pools.veil / 2), pools.risk);
+
+        if (damagePrevented === 0 && riskPrevented === 0) {
+            return 'None';
+        }
+
+        const parts = [];
+        if (damagePrevented > 0) {
+            parts.push(`${damagePrevented} Damage prevented by ${damagePrevented * 2} Grit`);
+        }
+        if (riskPrevented > 0) {
+            parts.push(`${riskPrevented} Risk prevented by ${riskPrevented * 2} Veil`);
+        }
+
+        return parts.join(', ');
     }
 
     /**

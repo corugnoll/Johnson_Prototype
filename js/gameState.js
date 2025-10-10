@@ -6,12 +6,28 @@
 class GameState {
     constructor() {
         this.contractData = null;
-        this.runners = this.initializeRunners();
+        this.runners = this.initializeRunners(); // Legacy property, will be phased out
         this.playerMoney = 0;
         this.playerRisk = 0;
         this.contractsCompleted = 0;
         this.selectedNodes = [];
         this.currentPools = this.initializePools();
+
+        // NEW: Player progression
+        this.playerLevel = 0;
+
+        // NEW: Runner pools
+        this.generatedRunners = [];      // Current batch of generated runners
+        this.previouslyHiredRunners = []; // All runners hired during this session
+        this.hiredRunners = [];          // Currently hired runners (max 3)
+
+        // NEW: Configuration data
+        this.balancingConfig = null;     // Loaded from balancing.csv
+        this.nameTable = {
+            firstParts: [],              // From runner_name_table.csv
+            secondParts: []              // From runner_name_table.csv
+        };
+        this.damageTable = [];           // From damage_table.csv
     }
 
     /**
@@ -383,10 +399,10 @@ class GameState {
         }
 
         try {
-            // RunnerType: Count how many runners of this type are configured
+            // RunnerType: Count how many hired runners of this type are configured (MODIFIED)
             if (condition.startsWith('RunnerType:')) {
                 const requiredType = condition.split(':')[1];
-                const count = this.runners.filter(runner => runner.type === requiredType).length;
+                const count = this.hiredRunners.filter(runner => runner.runnerType === requiredType).length;
                 return count;
             }
 
@@ -497,12 +513,12 @@ class GameState {
     }
 
     /**
-     * Get total stat across all runners
+     * Get total stat across all hired runners (MODIFIED)
      * @param {string} statType - Stat type to sum
      * @returns {number} Total stat value
      */
     getTotalRunnerStat(statType) {
-        return this.runners.reduce((total, runner) => {
+        return this.hiredRunners.reduce((total, runner) => {
             return total + (runner.stats[statType] || 0);
         }, 0);
     }
@@ -623,25 +639,14 @@ class GameState {
     }
 
     /**
-     * Validate current runner configuration
+     * Validate current runner configuration (MODIFIED)
      * @returns {boolean} True if configuration is valid
      */
     validateConfiguration() {
-        // Check if at least one runner is configured
-        const activeRunners = this.runners.filter(runner => runner.type !== 'Empty');
-
-        if (activeRunners.length === 0) {
-            console.warn('No runners configured');
+        // Check if at least one runner is hired
+        if (this.hiredRunners.length === 0) {
+            console.warn('No runners hired');
             return false;
-        }
-
-        // Check if all active runners have valid stats
-        for (const runner of activeRunners) {
-            const totalStats = Object.values(runner.stats).reduce((sum, stat) => sum + stat, 0);
-            if (totalStats === 0) {
-                console.warn('Active runner has no stats configured');
-                return false;
-            }
         }
 
         // Check if contract is loaded
@@ -840,9 +845,9 @@ class GameState {
         const typesStr = conditionPart.substring('RunnerType:'.length);
         const requiredTypes = typesStr.split(',').map(t => t.trim().toLowerCase());
 
-        // Count runners matching any of the required types
-        const matchingCount = this.runners.filter(runner => {
-            return requiredTypes.includes(runner.type.toLowerCase());
+        // Count hired runners matching any of the required types (MODIFIED)
+        const matchingCount = this.hiredRunners.filter(runner => {
+            return requiredTypes.includes(runner.runnerType.toLowerCase());
         }).length;
 
         return matchingCount >= threshold;
@@ -858,9 +863,9 @@ class GameState {
         const statsStr = conditionPart.substring('RunnerStat:'.length);
         const requiredStats = statsStr.split(',').map(s => s.trim().toLowerCase());
 
-        // Sum the required stats across all runners
+        // Sum the required stats across all hired runners (MODIFIED)
         let totalStats = 0;
-        this.runners.forEach(runner => {
+        this.hiredRunners.forEach(runner => {
             requiredStats.forEach(statName => {
                 totalStats += runner.stats[statName] || 0;
             });
@@ -1050,13 +1055,17 @@ class GameState {
     }
 
     /**
-     * Reset entire game session
+     * Reset entire game session (MODIFIED)
      */
     resetSession() {
         this.resetContract();
-        this.runners = this.initializeRunners();
+        this.runners = this.initializeRunners(); // Legacy, kept for compatibility
+        this.hiredRunners = [];
+        this.generatedRunners = [];
+        this.previouslyHiredRunners = [];
         this.playerMoney = 0;
         this.playerRisk = 0;
+        this.playerLevel = 0;
         this.contractsCompleted = 0;
 
         // Clear session storage
@@ -1065,15 +1074,18 @@ class GameState {
     }
 
     /**
-     * Save current state to session storage
+     * Save current state to session storage (MODIFIED)
      */
     saveSessionState() {
         try {
             const sessionData = {
                 playerMoney: this.playerMoney,
                 playerRisk: this.playerRisk,
+                playerLevel: this.playerLevel,
                 contractsCompleted: this.contractsCompleted,
-                runners: this.runners,
+                hiredRunners: this.hiredRunners,
+                generatedRunners: this.generatedRunners,
+                previouslyHiredRunners: this.previouslyHiredRunners,
                 timestamp: Date.now()
             };
 
@@ -1085,7 +1097,7 @@ class GameState {
     }
 
     /**
-     * Load state from session storage
+     * Load state from session storage (MODIFIED)
      * @returns {boolean} True if state was loaded successfully
      */
     loadSessionState() {
@@ -1097,11 +1109,10 @@ class GameState {
 
             const parsedData = JSON.parse(sessionData);
 
-            // Validate session data structure
+            // Validate session data structure (updated for new properties)
             if (typeof parsedData.playerMoney !== 'number' ||
                 typeof parsedData.playerRisk !== 'number' ||
-                typeof parsedData.contractsCompleted !== 'number' ||
-                !Array.isArray(parsedData.runners)) {
+                typeof parsedData.contractsCompleted !== 'number') {
                 console.warn('Invalid session data structure, ignoring');
                 return false;
             }
@@ -1114,11 +1125,14 @@ class GameState {
                 return false;
             }
 
-            // Restore state
+            // Restore state (updated for new runner system)
             this.playerMoney = parsedData.playerMoney;
             this.playerRisk = parsedData.playerRisk;
+            this.playerLevel = parsedData.playerLevel || 0;
             this.contractsCompleted = parsedData.contractsCompleted;
-            this.runners = parsedData.runners;
+            this.hiredRunners = parsedData.hiredRunners || [];
+            this.generatedRunners = parsedData.generatedRunners || [];
+            this.previouslyHiredRunners = parsedData.previouslyHiredRunners || [];
 
             console.log('Session state loaded successfully');
             return true;
@@ -1166,5 +1180,70 @@ class GameState {
             gameState: this.getGameState(),
             hasSessionState: this.hasSessionState()
         };
+    }
+
+    /**
+     * NEW: Set balancing configuration
+     * @param {Object} config - Balancing configuration
+     */
+    setBalancingConfig(config) {
+        this.balancingConfig = config;
+        console.log('Balancing config loaded:', config);
+    }
+
+    /**
+     * NEW: Set name table
+     * @param {Array} firstParts - First name parts
+     * @param {Array} secondParts - Second name parts
+     */
+    setNameTable(firstParts, secondParts) {
+        this.nameTable.firstParts = firstParts;
+        this.nameTable.secondParts = secondParts;
+        console.log(`Name table loaded: ${firstParts.length} first parts, ${secondParts.length} second parts`);
+    }
+
+    /**
+     * NEW: Set damage table
+     * @param {Array} damageTable - Damage table entries
+     */
+    setDamageTable(damageTable) {
+        this.damageTable = damageTable;
+        console.log(`Damage table loaded with ${damageTable.length} entries`);
+    }
+
+    /**
+     * NEW: Set generated runners
+     * @param {Array} runners - Generated runners
+     */
+    setGeneratedRunners(runners) {
+        this.generatedRunners = runners;
+        console.log(`Generated ${runners.length} runners`);
+    }
+
+    /**
+     * NEW: Add to previously hired runners
+     * @param {Object} runner - Runner to add
+     */
+    addToPreviouslyHired(runner) {
+        if (!this.previouslyHiredRunners.find(r => r.id === runner.id)) {
+            this.previouslyHiredRunners.push(runner);
+        }
+    }
+
+    /**
+     * NEW: Get runner stat totals for hired runners
+     * @returns {Object} Total stats
+     */
+    getHiredRunnerStatTotals() {
+        const totals = {face: 0, muscle: 0, hacker: 0, ninja: 0};
+
+        this.hiredRunners.forEach(runner => {
+            totals.face += runner.stats.face;
+            totals.muscle += runner.stats.muscle;
+            totals.hacker += runner.stats.hacker;
+            totals.ninja += runner.stats.ninja;
+        });
+
+        return totals;
     }
 }

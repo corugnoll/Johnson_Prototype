@@ -684,4 +684,38 @@ class CSVLoader {
         const result = ValidationUtils.validateGateCondition(conditionString, { rowNumber });
         return { errors: result.errors };
     }
+
+    /**
+     * NEW: Load runner name table from embedded data
+     * @returns {Promise<Object>} {firstParts: Array, secondParts: Array}
+     */
+    async loadNameTable() {
+        return new Promise((resolve, reject) => {
+            // Use embedded RUNNER_NAME_TABLE from resourceData.js
+            if (typeof RUNNER_NAME_TABLE !== 'undefined') {
+                console.log(`Name table loaded from embedded data: ${RUNNER_NAME_TABLE.firstParts.length} first parts, ${RUNNER_NAME_TABLE.secondParts.length} second parts`);
+                resolve(RUNNER_NAME_TABLE);
+            } else {
+                console.error('RUNNER_NAME_TABLE not found in embedded data');
+                reject(new Error('Runner name table not available'));
+            }
+        });
+    }
+
+    /**
+     * NEW: Load damage table from embedded data
+     * @returns {Promise<Array>} Parsed damage table
+     */
+    async loadDamageTable() {
+        return new Promise((resolve, reject) => {
+            // Use embedded DAMAGE_TABLE from resourceData.js (already parsed)
+            if (typeof DAMAGE_TABLE !== 'undefined') {
+                console.log(`Damage table loaded from embedded data with ${DAMAGE_TABLE.length} entries`);
+                resolve(DAMAGE_TABLE);
+            } else {
+                console.error('DAMAGE_TABLE not found in embedded data');
+                reject(new Error('Damage table not available'));
+            }
+        });
+    }
 }
