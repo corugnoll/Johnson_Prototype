@@ -213,20 +213,6 @@ class UIManager {
     }
 
     /**
-     * Update game state display
-     */
-    updateGameStateDisplay() {
-        if (!this.gameState) return;
-
-        const gameState = this.gameState.getGameState();
-
-        // Update player information
-        this.updateElementText('player-money', `$${gameState.playerMoney}`);
-        this.updateElementText('player-risk', gameState.playerRisk);
-        this.updateElementText('contracts-completed', gameState.contractsCompleted);
-    }
-
-    /**
      * Update button states based on current application state
      */
     updateButtonStates() {
@@ -520,6 +506,12 @@ class UIManager {
 
         const gameState = this.gameState.getGameState();
 
+        // Update player level
+        const playerLevelElement = document.getElementById('player-level');
+        if (playerLevelElement) {
+            playerLevelElement.textContent = this.gameState.playerLevel;
+        }
+
         this.updateElementText('player-money', `$${gameState.playerMoney}`);
         this.updateElementText('player-risk', gameState.playerRisk);
         this.updateElementText('contracts-completed', gameState.contractsCompleted);
@@ -545,40 +537,100 @@ class UIManager {
     }
 
     /**
+     * Update hired runners display
+     */
+    updateHiredRunnersDisplay() {
+        const slots = document.querySelectorAll('.hired-runner-slot');
+
+        // Clear all slots
+        slots.forEach(slot => {
+            slot.innerHTML = '<div class="empty-slot-message">Empty Slot</div>';
+            slot.classList.remove('filled');
+        });
+
+        // Fill hired slots
+        this.gameState.hiredRunners.forEach((runner, index) => {
+            if (index < 3) {
+                const slot = slots[index];
+                slot.classList.add('filled');
+                slot.innerHTML = this.createHiredRunnerHTML(runner);
+
+                // Add unhire event listener
+                const unhireBtn = slot.querySelector('.unhire-button');
+                if (unhireBtn) {
+                    unhireBtn.addEventListener('click', () => {
+                        this.handleUnhireRunner(runner);
+                    });
+                }
+            }
+        });
+
+        // Update stat totals
+        this.updateStatSummary();
+    }
+
+    /**
+     * Create hired runner HTML
+     */
+    createHiredRunnerHTML(runner) {
+        const stateClass = runner.runnerState.toLowerCase();
+        return `
+            <button class="unhire-button">X</button>
+            <div class="hired-runner-info">
+                <div class="hired-runner-name">${runner.name}</div>
+                <div class="hired-runner-level">Level ${runner.level} · ${runner.runnerType}</div>
+                <div class="hired-runner-stats">
+                    <div class="hired-runner-stat"><span>F:</span><span>${runner.stats.face}</span></div>
+                    <div class="hired-runner-stat"><span>M:</span><span>${runner.stats.muscle}</span></div>
+                    <div class="hired-runner-stat"><span>H:</span><span>${runner.stats.hacker}</span></div>
+                    <div class="hired-runner-stat"><span>N:</span><span>${runner.stats.ninja}</span></div>
+                </div>
+                <div class="runner-card-state ${stateClass}">${runner.runnerState}</div>
+            </div>
+        `;
+    }
+
+    /**
+     * Handle unhiring a runner
+     */
+    handleUnhireRunner(runner) {
+        const result = unhireRunner(runner, this.gameState);
+        if (result.success) {
+            this.updateHiredRunnersDisplay();
+            this.updateGameStateDisplay();
+
+            // Update execute button state
+            const executeBtn = document.getElementById('execute-contract');
+            if (executeBtn) {
+                executeBtn.disabled = this.gameState.hiredRunners.length === 0;
+            }
+
+            this.gameState.saveSessionState();
+        }
+    }
+
+    /**
+     * Update stat summary totals
+     */
+    updateStatSummary() {
+        const totals = this.gameState.getHiredRunnerStatTotals();
+
+        document.getElementById('total-face-stat').textContent = totals.face;
+        document.getElementById('total-muscle-stat').textContent = totals.muscle;
+        document.getElementById('total-hacker-stat').textContent = totals.hacker;
+        document.getElementById('total-ninja-stat').textContent = totals.ninja;
+    }
+
+    /**
      * Load and restore UI state from session
      * @param {Object} sessionData - Session data to restore
      */
     restoreUIFromSession(sessionData) {
-        // Restore runner configuration
-        if (sessionData.runners && Array.isArray(sessionData.runners)) {
-            for (let i = 0; i < Math.min(sessionData.runners.length, 3); i++) {
-                const runner = sessionData.runners[i];
-                const slotIndex = i + 1;
-
-                // Restore runner type
-                const typeSelect = document.getElementById(`runner${slotIndex}-type`);
-                if (typeSelect && runner.type) {
-                    typeSelect.value = runner.type;
-                }
-
-                // Restore runner stats
-                if (runner.stats) {
-                    const faceInput = document.getElementById(`runner${slotIndex}-face`);
-                    const muscleInput = document.getElementById(`runner${slotIndex}-muscle`);
-                    const hackerInput = document.getElementById(`runner${slotIndex}-hacker`);
-                    const ninjaInput = document.getElementById(`runner${slotIndex}-ninja`);
-
-                    if (faceInput) faceInput.value = runner.stats.face || 0;
-                    if (muscleInput) muscleInput.value = runner.stats.muscle || 0;
-                    if (hackerInput) hackerInput.value = runner.stats.hacker || 0;
-                    if (ninjaInput) ninjaInput.value = runner.stats.ninja || 0;
-                }
-            }
-        }
-
-        // Update game state display
+        // Update player stats
         this.updateGameStateDisplay();
-        this.updatePoolsDisplay();
+
+        // Update hired runners
+        this.updateHiredRunnersDisplay();
     }
 
     /**

@@ -744,3 +744,282 @@ input:focus {
         flex-direction: column;
     }
 }
+/* ================================
+   Hired Runners Section
+   ================================ */
+
+.hired-runner-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.hired-runner-slot {
+    background-color: var(--accent-bg);
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 0.5rem;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.hired-runner-slot.filled {
+    border-color: var(--text-primary);
+}
+
+.empty-slot-message {
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+    margin: auto;
+    font-size: 0.8rem;
+}
+
+.hired-runner-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding-right: 2rem;
+}
+
+.hired-runner-name {
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.hired-runner-level {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.hired-runner-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.25rem;
+    font-size: 0.75rem;
+}
+
+.hired-runner-stat {
+    display: flex;
+    justify-content: space-between;
+}
+
+.unhire-button {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+    background: var(--error-color);
+    color: white;
+    border: none;
+    border-radius: 3px;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    font-size: 0.7rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    min-width: 20px;
+    max-width: 20px;
+    flex: none;
+    font-weight: bold;
+}
+
+.unhire-button:hover {
+    opacity: 0.8;
+    transform: none;
+    box-shadow: none;
+}
+
+.stat-summary {
+    margin-bottom: 0.75rem;
+}
+
+.stat-summary h3 {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.stat-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.25rem;
+}
+
+.stat-summary-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    padding: 0.25rem;
+    background-color: var(--accent-bg);
+    border-radius: var(--border-radius);
+}
+
+/* Open Runner Index Button - Fixed size */
+#toggle-runner-index {
+    height: 36px;
+    padding: 0.5rem 0.75rem;
+    margin-top: auto;
+    flex: 0 0 auto;
+}
+
+/* ================================
+   Runner Index Modal
+   ================================ */
+
+.runner-index-content {
+    max-width: 900px;
+    max-height: 85vh;
+}
+
+.tab-navigation {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.tab-button {
+    padding: 0.5rem 1rem;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+}
+
+.tab-button:hover {
+    color: var(--text-primary);
+}
+
+.tab-button.active {
+    color: var(--text-primary);
+    border-bottom-color: var(--primary-color);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.runner-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.runner-card {
+    background-color: var(--accent-bg);
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 0.75rem;
+    position: relative;
+}
+
+.runner-card.hireable {
+    border-color: var(--success-color);
+}
+
+.runner-card.dead {
+    border-color: var(--error-color);
+    opacity: 0.6;
+}
+
+.runner-card.injured {
+    border-color: var(--warning-color);
+}
+
+.runner-card-header {
+    margin-bottom: 0.5rem;
+}
+
+.runner-card-name {
+    font-weight: bold;
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
+}
+
+.runner-card-type {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.runner-card-level {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.runner-card-state {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.3rem;
+    border-radius: 3px;
+    display: inline-block;
+    margin-top: 0.25rem;
+}
+
+.runner-card-state.ready {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.runner-card-state.injured {
+    background-color: var(--warning-color);
+    color: white;
+}
+
+.runner-card-state.dead {
+    background-color: var(--error-color);
+    color: white;
+}
+
+.runner-card-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.runner-card-stat {
+    display: flex;
+    justify-content: space-between;
+}
+
+.hire-button {
+    width: 100%;
+    margin-top: 0.5rem;
+    padding: 0.4rem;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.hire-button:hover:not(:disabled) {
+    opacity: 0.8;
+}
+
+.hire-button:disabled {
+    background-color: var(--border-color);
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.runner-card-cost {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
