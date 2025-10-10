@@ -14,7 +14,7 @@ class JohnsonApp {
     }
 
     /**
-     * Initialize the application
+     * Initialize the application (MODIFIED for Runner Generation System)
      */
     async init() {
         try {
@@ -33,11 +33,35 @@ class JohnsonApp {
                 console.warn('Canvas element not found - visual prototype will not be available');
             }
 
+            // NEW: Load balancing configuration, name table, and damage table
+            this.updateLoadingMessage('Loading game configuration...');
+
+            const balancingConfig = await loadBalancingConfig();
+            this.gameState.setBalancingConfig(balancingConfig);
+
+            const nameTable = await this.csvLoader.loadNameTable();
+            this.gameState.setNameTable(nameTable.firstParts, nameTable.secondParts);
+
+            const damageTable = await this.csvLoader.loadDamageTable();
+            this.gameState.setDamageTable(damageTable);
+
             // Load session state if available
             const sessionLoaded = this.gameState.loadSessionState();
             if (sessionLoaded) {
                 this.updateLoadingMessage('Session state restored successfully.');
                 console.log('Previous session restored');
+            } else {
+                // NEW: Generate initial runner batch if no session
+                this.updateLoadingMessage('Generating initial runners...');
+                const initialRunners = generateRunnerBatch(
+                    balancingConfig.generatedRunnerBatchSize,
+                    this.gameState.nameTable,
+                    balancingConfig
+                );
+                this.gameState.setGeneratedRunners(initialRunners);
+
+                // Give player starting money (from balancing config)
+                this.gameState.playerMoney = balancingConfig.playerStartingMoney;
             }
 
             // Set up event listeners
@@ -46,13 +70,19 @@ class JohnsonApp {
             // Initialize UI
             await this.uiManager.init();
 
+            // Initialize hired runners display
+            this.uiManager.updateHiredRunnersDisplay();
+            this.uiManager.updateGameStateDisplay();
+
             // Restore UI from session if session was loaded
             if (sessionLoaded) {
                 const sessionData = {
-                    runners: this.gameState.runners,
+                    playerLevel: this.gameState.playerLevel,
                     playerMoney: this.gameState.playerMoney,
                     playerRisk: this.gameState.playerRisk,
-                    contractsCompleted: this.gameState.contractsCompleted
+                    contractsCompleted: this.gameState.contractsCompleted,
+                    hiredRunners: this.gameState.hiredRunners,
+                    generatedRunners: this.gameState.generatedRunners
                 };
                 this.uiManager.restoreUIFromSession(sessionData);
                 this.updateLoadingMessage('Previous session restored. Ready to load contract.');
@@ -62,6 +92,8 @@ class JohnsonApp {
 
             this.isInitialized = true;
             console.log('Johnson Prototype application initialized successfully');
+            console.log(`Generated ${this.gameState.generatedRunners.length} initial runners`);
+            console.log(`Player starting money: $${this.gameState.playerMoney}`);
 
         } catch (error) {
             console.error('Failed to initialize application:', error);
@@ -85,48 +117,39 @@ class JohnsonApp {
             fileInput.addEventListener('change', this.handleFileLoad.bind(this));
         }
 
-        // Handle configuration validation
-        const validateBtn = document.getElementById('validate-config');
-        if (validateBtn) {
-            validateBtn.addEventListener('click', this.handleValidateConfig.bind(this));
-        }
-
         // Handle contract execution
         const executeBtn = document.getElementById('execute-contract');
         if (executeBtn) {
             executeBtn.addEventListener('click', this.handleExecuteContract.bind(this));
         }
 
-        // Handle runner configuration changes
-        this.setupRunnerEventListeners();
+        // Runner Index modal controls
+        const toggleRunnerIndexBtn = document.getElementById('toggle-runner-index');
+        if (toggleRunnerIndexBtn) {
+            toggleRunnerIndexBtn.addEventListener('click', this.handleToggleRunnerIndex.bind(this));
+        }
+
+        const closeRunnerIndexBtn = document.getElementById('close-runner-index');
+        if (closeRunnerIndexBtn) {
+            closeRunnerIndexBtn.addEventListener('click', this.handleCloseRunnerIndex.bind(this));
+        }
+
+        // Tab switching
+        const tabButtons = document.querySelectorAll('.tab-button');
+        tabButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                this.handleTabSwitch(e.target.dataset.tab);
+            });
+        });
+
+        // Generate new runners button
+        const generateBtn = document.getElementById('generate-new-runners');
+        if (generateBtn) {
+            generateBtn.addEventListener('click', this.handleGenerateNewRunners.bind(this));
+        }
 
         // Handle window resize for responsive canvas
         window.addEventListener('resize', this.handleResize.bind(this));
-    }
-
-    /**
-     * Set up event listeners for runner configuration
-     */
-    setupRunnerEventListeners() {
-        for (let i = 1; i <= 3; i++) {
-            // Runner type changes
-            const typeSelect = document.getElementById(`runner${i}-type`);
-            if (typeSelect) {
-                typeSelect.addEventListener('change', (e) => {
-                    this.handleRunnerTypeChange(i - 1, e.target.value);
-                });
-            }
-
-            // Runner stat changes
-            ['face', 'muscle', 'hacker', 'ninja'].forEach(stat => {
-                const input = document.getElementById(`runner${i}-${stat}`);
-                if (input) {
-                    input.addEventListener('input', (e) => {
-                        this.handleRunnerStatChange(i - 1, stat, e.target.value);
-                    });
-                }
-            });
-        }
     }
 
     /**
@@ -159,11 +182,11 @@ class JohnsonApp {
 
                 this.updateLoadingMessage(`Contract "${contractName}" loaded successfully.`);
 
-                // Enable validation button and reset execution button
-                const validateBtn = document.getElementById('validate-config');
+                // Enable execute button if runners are hired
                 const executeBtn = document.getElementById('execute-contract');
-                if (validateBtn) validateBtn.disabled = false;
-                if (executeBtn) executeBtn.disabled = true;
+                if (executeBtn) {
+                    executeBtn.disabled = this.gameState.hiredRunners.length === 0;
+                }
 
                 // Clear file input
                 const fileInput = document.getElementById('contract-file');
@@ -206,11 +229,11 @@ class JohnsonApp {
 
                 this.updateLoadingMessage(`Contract "${file.name}" loaded successfully.`);
 
-                // Enable validation button and reset execution button
-                const validateBtn = document.getElementById('validate-config');
+                // Enable execute button if runners are hired
                 const executeBtn = document.getElementById('execute-contract');
-                if (validateBtn) validateBtn.disabled = false;
-                if (executeBtn) executeBtn.disabled = true;
+                if (executeBtn) {
+                    executeBtn.disabled = this.gameState.hiredRunners.length === 0;
+                }
 
                 // Clear dropdown selection
                 const dropdown = document.getElementById('contract-dropdown');
@@ -270,11 +293,11 @@ class JohnsonApp {
 
                 this.updateLoadingMessage('Example contract loaded successfully.');
 
-                // Enable validation button and reset execution button
-                const validateBtn = document.getElementById('validate-config');
+                // Enable execute button if runners are hired
                 const executeBtn = document.getElementById('execute-contract');
-                if (validateBtn) validateBtn.disabled = false;
-                if (executeBtn) executeBtn.disabled = true;
+                if (executeBtn) {
+                    executeBtn.disabled = this.gameState.hiredRunners.length === 0;
+                }
             } else {
                 throw new Error('No valid data found in example contract');
             }
@@ -286,32 +309,6 @@ class JohnsonApp {
         }
     }
 
-    /**
-     * Handle runner type changes
-     */
-    handleRunnerTypeChange(slotIndex, runnerType) {
-        if (this.gameState) {
-            this.gameState.setRunnerType(slotIndex, runnerType);
-            this.uiManager.updatePoolsDisplay();
-            // Save session state when runner configuration changes
-            this.gameState.saveSessionState();
-        }
-    }
-
-    /**
-     * Handle runner stat changes
-     */
-    handleRunnerStatChange(slotIndex, statType, value) {
-        if (this.gameState) {
-            const numValue = parseInt(value) || 0;
-            this.gameState.setRunnerStat(slotIndex, statType, numValue);
-            this.uiManager.updatePoolsDisplay();
-            // Sync visual prototype with updated calculations
-            this.syncVisualWithGameState();
-            // Save session state when runner configuration changes
-            this.gameState.saveSessionState();
-        }
-    }
 
     /**
      * Handle node selection from visual prototype
@@ -359,33 +356,6 @@ class JohnsonApp {
         }
     }
 
-    /**
-     * Handle configuration validation
-     */
-    handleValidateConfig() {
-        if (!this.gameState || !this.gameState.contractData) {
-            this.updateLoadingMessage('No contract loaded for validation.');
-            return;
-        }
-
-        try {
-            const isValid = this.gameState.validateConfiguration();
-
-            if (isValid) {
-                this.updateLoadingMessage('Configuration validated successfully.');
-
-                // Enable execute button
-                const executeBtn = document.getElementById('execute-contract');
-                if (executeBtn) executeBtn.disabled = false;
-            } else {
-                this.updateLoadingMessage('Configuration validation failed. Check runner setup.');
-            }
-
-        } catch (error) {
-            console.error('Error validating configuration:', error);
-            this.updateLoadingMessage(`Validation error: ${error.message}`);
-        }
-    }
 
     /**
      * Handle contract execution
@@ -448,6 +418,188 @@ class JohnsonApp {
         if (canvas && this.uiManager) {
             this.uiManager.handleCanvasResize();
         }
+    }
+
+    /**
+     * Toggle Runner Index modal visibility
+     */
+    handleToggleRunnerIndex() {
+        const modal = document.getElementById('runner-index-modal');
+        if (modal) {
+            modal.style.display = modal.style.display === 'none' ? 'flex' : 'none';
+            if (modal.style.display === 'flex') {
+                this.renderRunnerIndex();
+            }
+        }
+    }
+
+    /**
+     * Close Runner Index modal
+     */
+    handleCloseRunnerIndex() {
+        const modal = document.getElementById('runner-index-modal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+    /**
+     * Handle tab switching in Runner Index
+     */
+    handleTabSwitch(tabName) {
+        // Update tab buttons
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+
+        // Map tab names to their content div IDs
+        const tabIdMap = {
+            'generated': 'generated-runners-tab',
+            'previously-hired': 'previously-hired-tab'
+        };
+
+        // Update tab content visibility
+        document.querySelectorAll('.tab-content').forEach(content => {
+            const shouldBeActive = content.id === tabIdMap[tabName];
+            if (shouldBeActive) {
+                content.classList.add('active');
+            } else {
+                content.classList.remove('active');
+            }
+        });
+
+        // Re-render the active tab to ensure content is displayed
+        if (tabName === 'generated') {
+            this.renderGeneratedRunners();
+        } else if (tabName === 'previously-hired') {
+            this.renderPreviouslyHiredRunners();
+        }
+    }
+
+    /**
+     * Generate new batch of runners
+     */
+    handleGenerateNewRunners() {
+        const newRunners = generateRunnerBatch(
+            this.gameState.balancingConfig.generatedRunnerBatchSize,
+            this.gameState.nameTable,
+            this.gameState.balancingConfig
+        );
+        this.gameState.setGeneratedRunners(newRunners);
+        this.renderRunnerIndex();
+        this.gameState.saveSessionState();
+    }
+
+    /**
+     * Render Runner Index modal content
+     */
+    renderRunnerIndex() {
+        this.renderGeneratedRunners();
+        this.renderPreviouslyHiredRunners();
+    }
+
+    /**
+     * Render generated runners grid
+     */
+    renderGeneratedRunners() {
+        const grid = document.getElementById('generated-runners-grid');
+        if (!grid) return;
+
+        grid.innerHTML = '';
+
+        this.gameState.generatedRunners.forEach(runner => {
+            const card = this.createRunnerCard(runner, true);
+            grid.appendChild(card);
+        });
+    }
+
+    /**
+     * Render previously hired runners grid
+     */
+    renderPreviouslyHiredRunners() {
+        const grid = document.getElementById('previously-hired-grid');
+        if (!grid) return;
+
+        grid.innerHTML = '';
+
+        // Sort by last hired timestamp (most recent first)
+        const sorted = [...this.gameState.previouslyHiredRunners].sort((a, b) =>
+            b.lastHiredTimestamp - a.lastHiredTimestamp
+        );
+
+        sorted.forEach(runner => {
+            const card = this.createRunnerCard(runner, false);
+            grid.appendChild(card);
+        });
+    }
+
+    /**
+     * Create a runner card element
+     */
+    createRunnerCard(runner, isGenerated) {
+        const card = document.createElement('div');
+        card.className = 'runner-card';
+
+        if (runner.runnerState === 'Dead') {
+            card.classList.add('dead');
+        } else if (runner.runnerState === 'Injured') {
+            card.classList.add('injured');
+        }
+
+        if (runner.hiringState === 'Hired') {
+            card.classList.add('hired');
+        }
+
+        card.innerHTML = `
+            <div class="runner-card-header">
+                <div class="runner-card-name">${runner.name}</div>
+                <div class="runner-card-type">${runner.runnerType}</div>
+            </div>
+            <div class="runner-card-level">Level ${runner.level}</div>
+            <div class="runner-card-stats">
+                <div class="runner-card-stat"><span>Face:</span><span>${runner.stats.face}</span></div>
+                <div class="runner-card-stat"><span>Muscle:</span><span>${runner.stats.muscle}</span></div>
+                <div class="runner-card-stat"><span>Hacker:</span><span>${runner.stats.hacker}</span></div>
+                <div class="runner-card-stat"><span>Ninja:</span><span>${runner.stats.ninja}</span></div>
+            </div>
+            <div class="runner-card-state ${runner.runnerState.toLowerCase()}">${runner.runnerState}</div>
+        `;
+
+        // Add hire button
+        const validation = validateHiring(runner, this.gameState);
+        const hireButton = document.createElement('button');
+        hireButton.className = 'hire-button';
+        hireButton.textContent = `Hire - $${this.gameState.balancingConfig.hiringCost}`;
+        hireButton.disabled = !validation.canHire;
+
+        if (!validation.canHire) {
+            const costDiv = document.createElement('div');
+            costDiv.className = 'runner-card-cost';
+            costDiv.textContent = validation.reason;
+            costDiv.style.color = 'var(--error-color)';
+            card.appendChild(costDiv);
+        }
+
+        hireButton.addEventListener('click', () => {
+            const result = hireRunner(runner, this.gameState);
+            if (result.success) {
+                this.updateLoadingMessage(result.message);
+                this.renderRunnerIndex();
+                this.uiManager.updateHiredRunnersDisplay();
+                this.uiManager.updateGameStateDisplay();
+
+                // Update execute button state
+                const executeBtn = document.getElementById('execute-contract');
+                if (executeBtn && this.gameState.contractData) {
+                    executeBtn.disabled = this.gameState.hiredRunners.length === 0;
+                }
+
+                this.gameState.saveSessionState();
+            }
+        });
+
+        card.appendChild(hireButton);
+        return card;
     }
 
     /**
