@@ -1,0 +1,4 @@
+"Node ID","Description","Effect Desc","Effect 1","Effect 2","Type","Color","X","Y","Width","Height","GateCondition","Connections"
+"NODE001","New Node","Node effect description","","","Normal","Red","825.0","285.0","134.5","60.0","","NODE003,NODE002"
+"NODE002","New Node","Node effect description","","","Synergy","Purple","1125.0","180.0","134.5","60.0","",""
+"NODE003","Node 1","+3 grit für each 5 hacker stat","RunnerStat:Hacker>=5;+;3;Grit","","Normal","Grey","1080.0","420.0","164.4","60.0","",""
